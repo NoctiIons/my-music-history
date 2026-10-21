@@ -449,7 +449,7 @@ html,body{font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sa
       <div class="topbar-title"><span>填写专辑</span><span class="mono" id="progressText">已选 0 张</span></div>
       <div class="stage-tabs" id="stageTabs"></div>
     </div>
-    <p class="entry-local-note">每个阶段最多可展示八张专辑</p><div id="albumForm"></div>
+    <div id="albumForm"></div>
     <div class="entry-footer">
       <button class="btn-ghost" id="prevBtn">上一步</button>
       <button class="btn-ghost primary" id="nextBtn">下一步</button>
@@ -689,7 +689,7 @@ function renderEntry(){
     var add=document.createElement('button');
     add.type='button';
     add.className='slot slot-add add-slot';
-    add.innerHTML='<span class="plus">+</span>再加一张（最多 '+MAX_SLOTS+' 张）';
+    add.innerHTML='<span class="plus">+</span>再加一张（最多可添加'+MAX_SLOTS+'张专辑）';
     add.onclick=function(){
       list.push(emptyAlbum());
       renderEntry();
@@ -1376,37 +1376,71 @@ if(typeof window.addEventListener==='function')window.addEventListener('resize',
 if(typeof ResizeObserver!=='undefined'){var titleRoot=document.getElementById('resultWrap');if(titleRoot)new ResizeObserver(scheduleTitleFit).observe(titleRoot);}
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(scheduleTitleFit);
 
-/* Same stage order and four-album rows as the compact result page. */
+/* Export-only portrait composition. The interactive result page is unchanged. */
 socialPoster=async function(){
-  var records=socialRecords(),indices=socialStageIndices(),W=1200,M=64,gap=18,cols=4,cover=(W-2*M-gap*(cols-1))/cols,row=cover+105;
-  var cv=document.createElement('canvas'),c=cv.getContext('2d'),missing=0;
-  function measureTitle(t,size){c.font='600 '+size+'px sans-serif';return c.measureText(t).width;}
-  var layouts=records.map(function(stage){return stage.map(function(a){return albumTitleLayout(a.album,cover,23,measureTitle);});});
-  var rowHeights=records.map(function(stage,si){var rows=[];for(var i=0;i<stage.length;i+=cols){var titleHeight=Math.max.apply(null,layouts[si].slice(i,i+cols).map(function(l){return l.lines.length*l.lineHeight;}));rows.push({titleHeight:titleHeight,height:cover+14+titleHeight+45});}return rows;});
-  var stageHeights=indices.map(function(si){return 82+rowHeights[si].reduce(function(total,r){return total+r.height;},0)+26;});
-  var genreY=190+stageHeights.reduce(function(a,b){return a+b;},0),H=Math.ceil(genreY+180+Math.ceil(indices.length/2)*130+65);
-  cv.width=W;cv.height=H;
-  c.fillStyle='#f7f8f5';c.fillRect(0,0,W,H);c.fillStyle='#397f78';c.font='20px sans-serif';c.fillText('我的音乐履历',M,55);
-  c.fillStyle='#28332f';c.font='bold 40px sans-serif';socialWrap(c,socialTitle(),M,112,W-2*M,46,2);
-  var loaded=await Promise.all(records.map(function(s){return Promise.all(s.map(function(a){return socialLoadImage(a.cover);}));})),y=190;
-  indices.forEach(function(si,column){
-    c.fillStyle=SOCIAL_COLORS[si];c.fillRect(M,y,W-2*M,3);c.fillStyle='#28332f';c.font='bold 31px sans-serif';c.fillText(STAGES[si],M,y+47);
-    records[si].forEach(function(a,i){
-      var ax=M+(i%cols)*(cover+gap),ay=y+78+rowHeights[si].slice(0,Math.floor(i/cols)).reduce(function(total,r){return total+r.height;},0),img=loaded[si][i];
+  var records=socialRecords(),indices=socialStageIndices(),W=1800,H=2400,M=88,missing=0;
+  var cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  var c=cv.getContext('2d'),fontFamily='"Microsoft YaHei", sans-serif';
+  function font(size,bold){c.font=(bold?'600 ':'')+size+'px '+fontFamily;}
+  // Break at spaces and punctuation, never in the middle of an English word.
+  function wrap(text,width,size,bold){
+    font(size,bold);
+    var tokens=String(text||'').match(/[([]?[A-Za-z0-9]+(?:['’\-][A-Za-z0-9]+)*[)\]]?|\s+|[^\s]/g)||[],lines=[],line='';
+    tokens.forEach(function(t){if(line&&c.measureText(line+t).width>width){lines.push(line.trimEnd());line=t.trimStart();}else line+=t;});
+    if(line.trim())lines.push(line.trimEnd());return lines.length?lines:[''];
+  }
+  function text(lines,x,y,size,bold,color,lineHeight,width){
+    font(size,bold);c.fillStyle=color;
+    lines.forEach(function(line,i){
+      // A single unusually long token is fitted locally, without truncation.
+      var measured=c.measureText(line).width;
+      if(width&&measured>width){c.save();c.translate(x,y+i*lineHeight);c.scale(width/measured,1);c.fillText(line,0,0);c.restore();}
+      else c.fillText(line,x,y+i*lineHeight);
+    });
+  }
+  var title=wrap(socialTitle(),W-2*M,52,true),top=228+(title.length-1)*65;
+  var columns=indices.length===1?1:2,stageGap=64,stageW=(W-2*M-stageGap*(columns-1))/columns;
+  // A single stage uses the full page width but keeps its covers comfortably sized.
+  var cover=Math.min(300,(stageW-54)/4),albumGap=(stageW-cover*4)/3;
+  var layouts=indices.map(function(si){
+    var albums=records[si].map(function(a){return {title:wrap(a.album,cover,26,true),artist:wrap(a.artist,cover,23,false)};}),rows=[];
+    for(var i=0;i<albums.length;i+=4){var group=albums.slice(i,i+4),th=Math.max.apply(null,group.map(function(a){return a.title.length*35;})),ah=Math.max.apply(null,group.map(function(a){return a.artist.length*31;}));rows.push({titleHeight:th,height:cover+16+th+10+ah+34});}
+    return {si:si,albums:albums,rows:rows,height:72+rows.reduce(function(n,r){return n+r.height;},0)};
+  });
+  var bands=[];for(var i=0;i<layouts.length;i+=columns)bands.push(Math.max.apply(null,layouts.slice(i,i+columns).map(function(l){return l.height;})));
+  var bodyH=bands.reduce(function(a,b){return a+b;},0)+Math.max(0,bands.length-1)*54;
+  var genreW=(W-2*M-32*Math.max(0,indices.length-1))/Math.max(1,indices.length);
+  var genres=indices.map(function(si){return wrap(socialGenres(si).join(' / ')||'曲风资料待补充',genreW,24,false);});
+  var genreH=190+Math.max(1,...genres.map(function(g){return g.length;}))*32;
+  var maxGenreY=H-88-genreH,scale=Math.min(1,(maxGenreY-top-46)/Math.max(1,bodyH));
+  var genreY=top+bodyH*scale+46;
+  // Sparse cards keep more air between the collection and the genre summary.
+  if(indices.length<=2)genreY=Math.min(maxGenreY,Math.max(genreY,1700));
+  c.fillStyle='#f7f8f5';c.fillRect(0,0,W,H);
+  text(['我的音乐履历'],M,86,27,false,'#397f78',35);
+  text(title,M,153,52,true,'#28332f',65);
+  var loaded=await Promise.all(records.map(function(s){return Promise.all(s.map(function(a){return socialLoadImage(a.cover);}));}));
+  c.save();c.translate((W-(W-2*M)*scale)/2,top);c.scale(scale,scale);
+  layouts.forEach(function(l,li){
+    var x=(li%columns)*(stageW+stageGap),y=bands.slice(0,Math.floor(li/columns)).reduce(function(n,b){return n+b+54;},0),si=l.si;
+    c.fillStyle=SOCIAL_COLORS[si];c.fillRect(x,y,stageW,4);
+    text(['0'+(si+1)],x,y+46,23,false,'#65756e',31);
+    text([STAGES[si]],x+53,y+46,36,true,'#28332f',44);
+    records[si].forEach(function(a,ai){
+      var rowIndex=Math.floor(ai/4),ax=x+(ai%4)*(cover+albumGap),ay=y+72+l.rows.slice(0,rowIndex).reduce(function(n,r){return n+r.height;},0),img=loaded[si][ai],al=l.albums[ai];
       c.fillStyle='#e7eeea';c.fillRect(ax,ay,cover,cover);
       if(img){var size=Math.min(img.width,img.height);c.drawImage(img,(img.width-size)/2,(img.height-size)/2,size,size,ax,ay,cover,cover);}
-      else{if(a.cover)missing++;c.fillStyle='#69766f';c.font='17px sans-serif';socialWrap(c,a.cover?'封面暂不可用':'暂无封面',ax+8,ay+cover/2,cover-16,21,2);}
-      var layout=layouts[si][i];c.fillStyle='#28332f';c.font='600 '+layout.size+'px sans-serif';layout.lines.forEach(function(line,li){c.fillText(line,ax,ay+cover+29+li*layout.lineHeight);});
-      c.fillStyle='#596960';c.font='20px sans-serif';socialWrap(c,a.artist,ax,ay+cover+14+rowHeights[si][Math.floor(i/cols)].titleHeight+25,cover,25,1);
-    });y+=stageHeights[column];
-  });
-  c.fillStyle='#dce4dd';c.fillRect(M,genreY,W-2*M,1);c.fillStyle='#28332f';c.font='bold 29px sans-serif';c.fillText('偏好曲风',M,genreY+55);
-  c.fillStyle='#69766f';c.font='19px sans-serif';c.fillText('仅依据有曲风资料的专辑',M,genreY+91);
-  indices.forEach(function(si,i){var x=M+(i%2)*((W-2*M+32)/2),gy=genreY+140+Math.floor(i/2)*130,width=(W-2*M-32)/2;
-    c.fillStyle=SOCIAL_COLORS[si];c.fillRect(x,gy,width,3);c.fillStyle='#28332f';c.font='bold 24px sans-serif';c.fillText(STAGES[si],x,gy+36);
-    c.fillStyle='#397f78';c.font='21px sans-serif';socialWrap(c,socialGenres(si).join(' / ')||'曲风资料待补充',x,gy+72,width,27,2);
-  });
-  c.fillStyle='#69766f';c.font='17px sans-serif';c.fillText('我的音乐履历',M,H-30);return {canvas:cv,missing:missing};
+      else{if(a.cover)missing++;text([a.cover?'封面暂不可用':'暂无封面'],ax+8,ay+cover/2,20,false,'#65756e',26,cover-16);}
+      text(al.title,ax,ay+cover+36,26,true,'#28332f',35,cover);
+      text(al.artist,ax,ay+cover+16+l.rows[rowIndex].titleHeight+33,23,false,'#65756e',31,cover);
+    });
+  });c.restore();
+  c.fillStyle='#dce4dd';c.fillRect(M,genreY,W-2*M,1);
+  text(['偏好曲风'],M,genreY+62,34,true,'#28332f',43);
+  text(['仅依据有曲风资料的专辑'],W-M-360,genreY+60,23,false,'#65756e',31);
+  indices.forEach(function(si,i){var x=M+i*(genreW+32),y=genreY+100;c.fillStyle=SOCIAL_COLORS[si];c.fillRect(x,y,genreW,3);text([STAGES[si]],x,y+43,27,true,'#28332f',35);text(genres[i],x,y+84,24,false,'#397f78',32,genreW);});
+  text(['我的音乐履历'],M,H-48,22,false,'#65756e',30);
+  return {canvas:cv,missing:missing,layout:{stageIndices:indices,scale:scale,genreY:genreY}};
 };
 
 </script><script>
