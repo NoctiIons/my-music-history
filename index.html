@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f7f8f5"><meta name="description" content="记录不同年龄段喜欢的专辑，回顾曲风变化，生成可以分享的音乐履历。无需登录。">
+<title>我的音乐履历</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23F7F8F5'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%2333C3B2' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23397F78'/%3E%3C/svg%3E">
+
+<style>
+:root{
+  --bg:#0A0E14;
+  --text:rgba(255,255,255,.94);
+  --text-2:rgba(255,255,255,.62);
+  --text-3:rgba(255,255,255,.38);
+  --glass:rgba(255,255,255,.07);
+  --glass-2:rgba(255,255,255,.11);
+  --line:rgba(255,255,255,.15);
+  --accent:#FF6F5E;
+  --teal:#33C3B2;
+  --amber:#F2B444;
+  --blue:#5B9CFF;
+  --pink:#EC6AA0;
+  --green:#7DC78A;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:var(--bg);color:var(--text);font-family:'Noto Sans SC',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;-webkit-font-smoothing:antialiased;}
+body{min-height:100vh;}
+button{font-family:inherit;cursor:pointer;color:inherit;}
+input{color:var(--text);}
+input::placeholder{color:var(--text-3);}
+.mono{font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;}
+.view{display:none;position:relative;z-index:3;}.view.active{display:block;}
+.wrap{max-width:480px;margin:0 auto;padding:0 18px 60px;}
+
+/* ===== 背景：固定光斑 + 专辑封面虚化层 ===== */
+.bg-aurora{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;
+  background:
+    radial-gradient(1100px 760px at 82% -8%,rgba(51,195,178,.16),transparent 62%),
+    radial-gradient(960px 700px at -12% 28%,rgba(236,106,160,.14),transparent 60%),
+    radial-gradient(1080px 780px at 58% 112%,rgba(91,156,255,.15),transparent 60%),
+    radial-gradient(760px 600px at 108% 68%,rgba(242,180,68,.10),transparent 60%);}
+.bg-aurora span{position:absolute;border-radius:50%;filter:blur(88px);opacity:.55;will-change:transform;
+  animation:drift 28s ease-in-out infinite alternate;}
+.bg-aurora span:nth-child(1){width:380px;height:380px;left:-90px;top:-60px;background:rgba(51,195,178,.28);}
+.bg-aurora span:nth-child(2){width:320px;height:320px;right:-80px;top:22%;background:rgba(236,106,160,.24);animation-delay:-7s;animation-duration:34s;}
+.bg-aurora span:nth-child(3){width:360px;height:360px;left:6%;bottom:-120px;background:rgba(91,156,255,.26);animation-delay:-14s;animation-duration:38s;}
+.bg-aurora span:nth-child(4){width:260px;height:260px;right:10%;bottom:16%;background:rgba(242,180,68,.20);animation-delay:-21s;animation-duration:30s;}
+@keyframes drift{from{transform:translate3d(0,0,0) scale(1);}to{transform:translate3d(36px,42px,0) scale(1.12);}}
+.bg-covers{position:fixed;inset:0;z-index:1;display:none;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);opacity:0;transition:opacity 1.2s ease;pointer-events:none;overflow:hidden;}
+.bg-covers.on{display:grid;opacity:1;}
+.bg-covers img{width:100%;height:100%;object-fit:cover;filter:blur(72px) saturate(1.5) brightness(.62);transform:scale(1.35);}
+.bg-veil{position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(180deg,rgba(10,14,20,.46) 0%,rgba(10,14,20,.60) 100%);}
+@media (prefers-reduced-motion: reduce){.bg-aurora span{animation:none;}}
+
+/* ===== 玻璃通用 ===== */
+.glass{background:var(--glass);border:1px solid var(--line);border-radius:22px;
+  backdrop-filter:blur(26px) saturate(1.5);-webkit-backdrop-filter:blur(26px) saturate(1.5);
+  box-shadow:0 10px 34px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.12);}
+
+/* ===== 首页 ===== */
+#home{min-height:100vh;display:none;align-items:center;justify-content:center;padding:28px 22px;}
+#home.active{display:flex;}
+.home-card{width:100%;max-width:400px;padding:40px 30px 30px;text-align:center;}
+.disc{width:128px;height:128px;border-radius:50%;position:relative;margin:0 auto 28px;animation:spin 18s linear infinite;
+  background:conic-gradient(from 18deg,#2b3442,#10151c 30%,#3a4452 52%,#151b23 72%,#2b3442);
+  box-shadow:0 12px 34px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.16),inset 0 3px 14px rgba(255,255,255,.16);}
+.disc::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background:repeating-radial-gradient(circle at center,transparent 0 6px,rgba(255,255,255,.045) 6px 7px);}
+.disc::after{content:"";position:absolute;left:50%;top:50%;width:42px;height:42px;transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#4a5566,#1a212b);
+  border:2px solid rgba(255,255,255,.25);
+  box-shadow:inset 0 0 0 5px var(--accent),0 2px 8px rgba(0,0,0,.4);}
+.disc-hole{position:absolute;left:50%;top:50%;width:7px;height:7px;transform:translate(-50%,-50%);border-radius:50%;background:#0A0E14;z-index:2;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion: reduce){.disc{animation:none;}}
+.home-title{font-size:34px;font-weight:900;letter-spacing:2px;line-height:1.15;}
+.home-sub{margin-top:14px;color:var(--text-2);font-size:14px;line-height:1.9;}
+.home-steps{margin-top:24px;display:flex;gap:8px;flex-wrap:wrap;justify:center;}
+.home-steps{justify-content:center;}
+.home-steps span{border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12.5px;
+  background:var(--glass);color:var(--text-2);}
+.home-nick{margin-top:26px;}
+.home-nick input{width:100%;padding:14px 16px;border:1px solid var(--line);border-radius:14px;
+  background:rgba(255,255,255,.08);font-size:16px;font-family:inherit;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
+.home-nick input:focus{outline:none;border-color:rgba(255,111,94,.7);}
+.btn-primary{margin-top:16px;width:100%;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;
+  color:#fff;background:linear-gradient(135deg,#FF7A6A,#FF9B66);
+  box-shadow:0 10px 26px rgba(255,111,94,.32),inset 0 1px 0 rgba(255,255,255,.35);
+  transition:transform .15s,box-shadow .15s;}
+.btn-primary:active{transform:scale(.98);}
+.home-note{margin-top:20px;font-size:12px;color:var(--text-3);}
+
+/* ===== 录入页 ===== */
+.topbar{position:sticky;top:0;z-index:20;margin:0 -18px;padding:14px 18px 12px;
+  background:rgba(10,14,20,.52);
+  backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4);
+  border-bottom:1px solid var(--line);}
+.topbar-title{font-weight:700;font-size:16px;display:flex;justify-content:space-between;align-items:center;}
+.topbar-title .mono{font-size:12px;color:var(--text-2);}
+.stage-tabs{display:flex;gap:8px;margin-top:12px;}
+.stage-tab{flex:1;border:1px solid var(--line);border-radius:12px;background:var(--glass);
+  padding:9px 2px;text-align:center;font-size:12.5px;font-weight:500;line-height:1.5;
+  color:var(--text-2);transition:all .2s;}
+.stage-tab .num{display:block;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-3);}
+.stage-tab{position:relative;}
+.stage-tab .tab-cnt{position:absolute;top:-7px;right:-5px;min-width:18px;height:18px;padding:0 5px;
+  border-radius:999px;background:var(--teal);color:#06231f;font-size:10.5px;font-weight:700;
+  line-height:18px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.3);}
+.stage-tab.current{background:rgba(255,255,255,.92);border-color:transparent;color:#14181F;font-weight:700;}
+.stage-tab.current .num{color:rgba(20,24,31,.5);}
+.stage-tab.current .tab-cnt{background:#0d9488;color:#eafffc;}
+.add-slot{min-height:48px !important;margin-top:12px;font-size:13.5px !important;}
+.slot{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  background:var(--glass);border:1px solid var(--line);border-radius:16px;margin-top:12px;padding:11px 12px;
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:0 6px 20px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.09);
+  transition:transform .15s,border-color .15s;}
+.slot:active{transform:scale(.99);}
+.slot .idx{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-3);width:16px;flex-shrink:0;}
+.slot-add{justify-content:center;font-weight:500;font-size:14.5px;color:var(--text-2);min-height:60px;
+  border-style:dashed;background:rgba(255,255,255,.03);}
+.slot-add .plus{color:var(--accent);font-size:20px;margin-right:8px;font-weight:700;}
+.slot-cover{width:52px;height:52px;border-radius:10px;object-fit:cover;border:1px solid var(--line);
+  background:rgba(255,255,255,.06);flex-shrink:0;}
+.slot-cover.ph{display:flex;align-items:center;justify-content:center;}
+.slot-meta{flex:1;min-width:0;}
+.slot-album{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.slot-artist{font-size:12.5px;color:var(--text-2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.slot-badge{font-size:10.5px;border:1px solid var(--line);color:var(--text-2);border-radius:999px;padding:2px 9px;flex-shrink:0;
+  background:rgba(255,255,255,.06);}
+.slot-del{border:none;background:rgba(255,255,255,.1);border-radius:50%;width:26px;height:26px;
+  font-size:15px;color:var(--text-2);flex-shrink:0;line-height:1;display:flex;align-items:center;justify-content:center;}
+.entry-footer{display:flex;gap:12px;margin-top:24px;}
+.btn-ghost{flex:1;background:var(--glass);border:1px solid var(--line);border-radius:14px;padding:15px;font-size:15px;font-weight:700;
+  color:var(--text);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+.btn-ghost.primary{border:none;color:#fff;background:linear-gradient(135deg,#FF7A6A,#FF9B66);
+  box-shadow:0 10px 26px rgba(255,111,94,.30),inset 0 1px 0 rgba(255,255,255,.32);}
+.entry-tip{margin-top:14px;font-size:12px;color:var(--text-3);text-align:center;line-height:1.8;}
+
+/* ===== 搜索弹层 ===== */
+.sheet{position:fixed;inset:0;z-index:50;background:rgba(10,14,20,.70);
+  backdrop-filter:blur(30px) saturate(1.4);-webkit-backdrop-filter:blur(30px) saturate(1.4);
+  display:none;flex-direction:column;}
+.sheet.show{display:flex;}
+.sheet-head{display:flex;gap:10px;align-items:center;padding:14px 18px 0;}
+.sheet-head input{flex:1;border:1px solid var(--line);border-radius:14px;padding:13px 15px;font-size:16px;font-family:inherit;
+  background:rgba(255,255,255,.09);min-width:0;}
+.sheet-head input:focus{outline:none;border-color:rgba(255,111,94,.7);}
+.sheet-head button{background:none;border:none;font-size:15px;font-weight:500;padding:8px 4px;flex-shrink:0;color:var(--text-2);}
+.search-mode{display:flex;gap:6px;margin:12px 18px 0;padding:4px;border:1px solid var(--line);border-radius:12px;
+  background:rgba(255,255,255,.06);}
+.search-mode button{flex:1;border:none;background:none;border-radius:9px;padding:9px 0;font-size:13.5px;font-weight:500;
+  color:var(--text-2);}
+.search-mode button.on{background:rgba(255,255,255,.92);color:#14181F;font-weight:700;}
+.sheet-body{flex:1;overflow:auto;padding:4px 18px 40px;}
+.sheet-hint{font-size:12px;color:var(--text-3);padding:12px 4px 8px;}
+.res-row{display:flex;gap:11px;align-items:center;width:100%;text-align:left;background:none;border:none;
+  padding:11px 4px;border-bottom:1px dashed rgba(255,255,255,.10);}
+.res-row:active{opacity:.55;}
+.res-row img{width:48px;height:48px;border-radius:9px;border:1px solid var(--line);object-fit:cover;flex-shrink:0;
+  background:rgba(255,255,255,.06);}
+.res-meta{flex:1;min-width:0;}
+.res-album{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.res-sub{font-size:12px;color:var(--text-2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.manual-btn{width:100%;margin-top:20px;border:1px dashed var(--line);background:rgba(255,255,255,.04);
+  border-radius:14px;padding:14px;font-size:14px;color:var(--text-2);font-weight:500;}
+.manual-box{margin-top:14px;border:1px solid var(--line);border-radius:16px;padding:15px;background:var(--glass);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);display:none;}
+.manual-box.show{display:block;}
+.manual-box .field{margin-bottom:10px;}
+.manual-box input{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:11px;font-size:16px;font-family:inherit;
+  background:rgba(255,255,255,.08);}
+.manual-box input:focus{outline:none;border-color:rgba(255,111,94,.7);}
+.manual-cover{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
+.manual-cover label{border:1px solid var(--line);border-radius:11px;padding:10px 14px;font-size:13px;font-weight:500;
+  background:rgba(255,255,255,.09);color:var(--text-2);}
+.manual-cover input{display:none;}
+.manual-cover img{width:48px;height:48px;border-radius:9px;object-fit:cover;border:1px solid var(--line);}
+.manual-cover .mc-tip{font-size:12px;color:var(--text-3);}
+.manual-save{width:100%;border:none;border-radius:11px;padding:14px;font-weight:700;font-size:15px;color:#fff;
+  background:linear-gradient(135deg,#FF7A6A,#FF9B66);
+  box-shadow:0 8px 22px rgba(255,111,94,.28),inset 0 1px 0 rgba(255,255,255,.3);}
+
+/* ===== 结果页 ===== */
+#result{padding:20px 0 60px;}
+#capture{position:relative;}
+.capture-bg{position:absolute;inset:-16px -10px;border-radius:28px;z-index:0;
+  background:linear-gradient(162deg,rgba(24,32,46,.90),rgba(10,14,20,.96));
+  border:1px solid rgba(255,255,255,.06);}
+#capture>*{position:relative;z-index:1;}
+.hero{padding:20px 20px 22px;position:relative;overflow:hidden;}
+.hero-meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:3px;color:var(--text-3);}
+.hero-meta .mono{font-size:10px;letter-spacing:1px;}
+.hero-nick{margin-top:14px;font-size:14px;color:var(--text-2);}
+.hero-tag{display:inline-block;margin-top:10px;font-size:11px;color:var(--teal);border:1px solid rgba(51,195,178,.4);
+  background:rgba(51,195,178,.12);border-radius:999px;padding:3px 11px;letter-spacing:1px;}
+.persona-name{font-size:32px;font-weight:900;line-height:1.25;margin-top:10px;
+  background:linear-gradient(120deg,#fff 30%,#B8E8E2);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;}
+.persona-desc{margin-top:10px;font-size:13.5px;line-height:1.85;color:var(--text-2);}
+.hero-covers{display:flex;margin-top:18px;}
+.hero-covers img{width:46px;height:46px;border-radius:10px;object-fit:cover;border:1.5px solid rgba(255,255,255,.35);
+  margin-left:-8px;box-shadow:0 4px 12px rgba(0,0,0,.35);}
+.hero-covers img:first-child{margin-left:0;}
+.hero-covers .ph{width:46px;height:46px;border-radius:10px;margin-left:-8px;background:rgba(255,255,255,.07);
+  border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;}
+.hero-covers .ph:first-child{margin-left:0;}
+.section-title{font-weight:700;font-size:14px;letter-spacing:2px;margin:26px 2px 12px;display:flex;align-items:center;gap:9px;
+  color:var(--text);}
+.section-title::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);
+  box-shadow:0 0 10px rgba(255,111,94,.8);}
+.score-card{background:var(--glass);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-top:10px;
+  backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  box-shadow:0 8px 26px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.10);}
+
+/* ===== 音乐年龄主卡 ===== */
+.age-card{background:linear-gradient(150deg,rgba(255,122,106,.20),rgba(51,195,178,.16) 60%,rgba(91,156,255,.18));
+  border:1px solid rgba(255,255,255,.18);border-radius:22px;padding:22px 22px 20px;margin-top:14px;
+  backdrop-filter:blur(26px) saturate(1.5);-webkit-backdrop-filter:blur(26px) saturate(1.5);
+  box-shadow:0 12px 34px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.14);}
+.age-label{font-size:12px;letter-spacing:2px;color:var(--text-2);display:flex;justify-content:space-between;align-items:center;}
+.age-label .mono{font-size:11px;color:var(--text-3);letter-spacing:0;}
+.age-year{font-family:'JetBrains Mono',monospace;font-size:64px;font-weight:700;line-height:1.1;margin-top:8px;
+  background:linear-gradient(120deg,#FFC7BE,#B8E8E2);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;letter-spacing:1px;}
+.age-year .unit{font-size:20px;font-family:'Noto Sans SC',sans-serif;font-weight:700;letter-spacing:2px;margin-left:6px;}
+.age-row{display:flex;align-items:baseline;gap:12px;margin-top:2px;}
+.age-song{font-size:13px;color:var(--text-2);font-weight:500;}
+.age-comment{margin-top:10px;font-size:13.5px;line-height:1.8;color:var(--text);}
+.age-detail{margin-top:8px;font-size:12px;line-height:1.7;color:var(--text-2);}
+.age-empty{font-size:14px;color:var(--text-2);margin-top:14px;line-height:1.8;}
+
+/* ===== 数据小纸条 ===== */
+.notes-card{background:var(--glass);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-top:10px;
+  backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);}
+.notes-title{font-size:12px;color:var(--text-3);letter-spacing:2px;margin-bottom:4px;}
+.notes-card ul{list-style:none;}
+.notes-card li{font-size:13px;line-height:1.7;color:var(--text-2);padding:7px 0 7px 18px;position:relative;
+  border-bottom:1px dashed rgba(255,255,255,.08);}
+.notes-card li:last-child{border-bottom:none;}
+.notes-card li::before{content:"";position:absolute;left:2px;top:15px;width:5px;height:5px;border-radius:50%;background:var(--teal);}
+.score-head{display:flex;justify-content:space-between;align-items:baseline;}
+.score-name{font-weight:500;font-size:14px;color:var(--text-2);}
+.score-num{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:24px;}
+.score-num.c-red{color:var(--accent);}
+.score-num.c-amber{color:var(--amber);}
+.score-num.c-teal{color:var(--teal);}
+.score-bar{height:8px;background:rgba(255,255,255,.10);border-radius:999px;margin-top:12px;overflow:hidden;}
+.score-fill{height:100%;border-radius:999px;width:0;transition:width .9s cubic-bezier(.2,.8,.2,1);background:var(--teal);}
+.score-fill.red{background:linear-gradient(90deg,#FF8C70,#FF6F5E);box-shadow:0 0 12px rgba(255,111,94,.55);}
+.score-fill.yellow{background:linear-gradient(90deg,#F6C65C,#F2B444);box-shadow:0 0 12px rgba(242,180,68,.5);}
+.score-fill.teal{background:linear-gradient(90deg,#4ED7C6,#33C3B2);box-shadow:0 0 12px rgba(51,195,178,.5);}
+.score-comment{margin-top:9px;font-size:12.5px;color:var(--text-2);line-height:1.6;}
+.ingredient{margin-top:4px;}
+.ing-row{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13px;}
+.ing-name{width:74px;flex-shrink:0;font-weight:500;color:var(--text-2);}
+.ing-bar{flex:1;height:9px;background:rgba(255,255,255,.10);border-radius:999px;overflow:hidden;}
+.ing-fill{height:100%;background:var(--teal);border-radius:999px;}
+.ing-fill.b2{background:var(--blue);}
+.ing-fill.b3{background:var(--amber);}
+.ing-fill.b4{background:var(--pink);}
+.ing-fill.b5{background:var(--green);}
+.ing-pct{width:40px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--text-2);flex-shrink:0;}
+.lang-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+.lang-tags span{background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:999px;
+  padding:5px 12px;font-size:12px;color:var(--text-2);}
+.recognize-note{font-size:11.5px;color:var(--text-3);margin-top:12px;line-height:1.6;}
+.wall-group{margin-top:16px;}
+.wall-stage{font-size:12px;font-weight:500;color:var(--text-2);margin-bottom:7px;letter-spacing:1px;}
+.wall{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;}
+.wall-cell{position:relative;padding-bottom:100%;border-radius:11px;overflow:hidden;
+  background:rgba(255,255,255,.06);border:1px solid var(--line);}
+.wall-cell img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.wall-cell .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+.result-actions{display:flex;gap:10px;margin-top:28px;}
+.result-actions button{flex:1;padding:16px 6px;border-radius:14px;font-size:15px;font-weight:700;}
+.btn-save{border:none;color:#fff;background:linear-gradient(135deg,#FF7A6A,#FF9B66);
+  box-shadow:0 10px 26px rgba(255,111,94,.30),inset 0 1px 0 rgba(255,255,255,.32);}
+.btn-restart{background:var(--glass);border:1px solid var(--line);color:var(--text);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+.toast{position:fixed;left:50%;bottom:42px;transform:translateX(-50%);z-index:99;
+  background:rgba(20,26,36,.82);border:1px solid var(--line);color:var(--text);
+  padding:12px 22px;border-radius:999px;font-size:14px;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  opacity:0;pointer-events:none;transition:opacity .25s;max-width:86%;text-align:center;}
+.toast.show{opacity:1;}
+
+/* ===== 桌面 ===== */
+@media (min-width:768px){
+  .wrap{max-width:560px;}
+  .persona-name{font-size:38px;}
+}
+
+/* v8 content controls, using existing colors and typography */
+.genre-edit{display:block;margin:5px 0 4px auto;padding:6px 10px;border:0;background:none;color:var(--text-2);font-size:12px;text-align:right;max-width:100%;}
+.genre-form{max-width:560px;width:100%;margin:0 auto;}
+.genre-chip{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:var(--glass);color:var(--text-2);font-size:12px;margin:4px 5px 4px 0;}
+.genre-chip.chosen{border-color:var(--teal);color:var(--teal);background:rgba(51,195,178,.1);}
+.genre-selected-line{font-size:12px;margin:9px 0;color:var(--text-2);}
+.genre-tools{display:flex;gap:8px;margin:16px 0;}.genre-tools select{width:50%;background:#1c222c;color:var(--text);border:1px solid var(--line);padding:10px;border-radius:10px;font-family:inherit;}
+.genre-tools select option{background:#1c222c;}
+#genreQuery,#genreCustom{width:100%;background:var(--glass);border:1px solid var(--line);border-radius:12px;padding:13px;color:var(--text);font:inherit;}
+#genreSource{font-size:12px;line-height:1.8;color:var(--text-3);margin:12px 0;}#genreSource a{color:var(--teal);}
+.muted{color:var(--text-3);}.genre-footnote{font-size:12px;line-height:1.7;color:var(--text-3);margin:14px 0;}
+.coordinate-title{font-family:inherit;font-size:clamp(24px,7vw,38px);font-weight:700;margin-top:12px;line-height:1.3;overflow-wrap:anywhere;}
+.evidence-albums{display:flex;flex-direction:column;gap:6px;margin-top:13px;font-size:12px;line-height:1.65;color:var(--text-2);overflow-wrap:anywhere;}
+.wall{grid-template-columns:repeat(3,minmax(0,1fr));gap:15px 10px;}
+.wall-cell{padding-bottom:0;border:none;background:none;overflow:visible;min-width:0;}
+.wall-cell>div:first-child{position:relative;padding-bottom:100%;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--glass);}
+.wall-caption{font-size:12px;line-height:1.5;margin-top:7px;overflow-wrap:anywhere;}
+.wall-by{font-size:11px;line-height:1.5;color:var(--text-2);margin-top:3px;overflow-wrap:anywhere;}
+.result-tags{display:flex;flex-wrap:wrap;gap:6px;}.hero .persona-name{font-size:28px;overflow-wrap:anywhere;}
+
+
+/* v9: larger stage headings and music-age summaries */
+.wall-stage{font-size:23px;font-weight:700;letter-spacing:1px;margin:30px 0 14px;color:var(--text);}
+.stage-ages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.stage-age{margin:0;padding:16px;}.stage-age-name{font-size:19px;font-weight:700;}
+.stage-age-number{font:700 32px/1.3 'JetBrains Mono',monospace;color:var(--teal);margin-top:10px;}
+.stage-age-number small{font:500 12px/1.5 'Noto Sans SC',sans-serif;margin-left:4px;}
+.age-method{margin-top:14px;font-size:12px;line-height:1.8;color:var(--text-2);}
+.age-method summary{cursor:pointer;}.age-method p{margin-top:10px;}
+.auto-genre-status{font-size:12px;color:var(--text-2);line-height:1.7;margin-top:14px;}
+:root{--bg:#f7f8f5;--text:#28332f;--text-2:#596960;--text-3:#6b7871;--glass:#fff;--glass-2:#edf3ef;--line:#dce4dd;--accent:#397f78;--teal:#397f78}
+html,body{font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg)}
+.bg-aurora,.bg-covers,.bg-veil{display:none!important}.glass,.slot{box-shadow:none;backdrop-filter:none}.glass{border-radius:20px}.disc{width:88px;height:88px;animation:none;background:repeating-radial-gradient(circle,#d2e2da 0 5px,#ecf2ee 6px 8px);box-shadow:none}.disc::after{width:30px;height:30px;background:#fff;box-shadow:none;border:6px solid var(--teal)}.disc-hole{background:var(--teal)}.home-title{font-size:30px;letter-spacing:0}.home-card{max-width:440px}.home-nick input,.sheet input,.sheet select,.genre-tools select{background:#fff;border-color:var(--line);color:var(--text)}.home-note{line-height:1.7}.btn-primary,.btn-ghost.primary,.manual-save{background:var(--teal);box-shadow:none}.topbar{background:#f7f8f5f5;backdrop-filter:blur(12px)}.stage-tab.current,.search-mode button.on{background:#397f78;color:white}.stage-tab.current .num{color:#e6f3ee}.slot-add{background:#fff}.slot-del{width:44px;height:44px;background:#edf3ef}.slot-genre{min-height:44px}.slot-badge{background:#edf3ef}.sheet{background:#f7f8f5fa;backdrop-filter:blur(14px)}.sheet-head,.search-mode,.sheet-body{width:100%;max-width:760px;margin-left:auto;margin-right:auto}.search-mode{width:calc(100% - 36px)}.sheet-head button{min-height:44px}.sheet-body{overscroll-behavior:contain}.res-row{border-bottom:1px solid var(--line)}.manual-box{background:#fff}.genre-chip{background:#fff;border-color:var(--line);color:var(--text-2);min-height:38px}.genre-chip.chosen{background:#deeee8;border-color:var(--teal);color:#285f59}.genre-footnote,.sheet-hint{color:var(--text-2)}.toast{background:#28332f;color:#fff}.entry-footer{padding-bottom:env(safe-area-inset-bottom)}#entry .wrap{max-width:760px}.entry-local-note{font-size:12px;color:var(--text-2);margin:18px 0;line-height:1.8}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #80aaa2;outline-offset:3px}input:focus{border-color:var(--teal)!important}button:disabled{opacity:.6;cursor:wait}
+#result{padding:0 0 40px}.social-shell{max-width:1220px;margin:auto;padding:0 36px}.social-top{display:flex;justify-content:space-between;align-items:center;gap:16px;min-height:84px;border-bottom:1px solid var(--line)}.social-brand{font-size:16px;font-weight:650}.social-actions{display:flex;gap:10px}.social-btn{border:1px solid var(--line);border-radius:10px;min-height:44px;padding:10px 18px;background:#fff;font-size:14px;color:var(--text);text-decoration:none;text-align:center;display:inline-flex;align-items:center;justify-content:center}.social-btn.primary{background:var(--teal);border-color:var(--teal);color:white}.social-heading{padding:36px 0 28px}.social-heading h1{font-size:clamp(26px,3.5vw,40px);font-weight:700;line-height:1.3;overflow-wrap:anywhere}.social-heading p{font-size:13px;color:var(--text-2);margin-top:12px}.social-module-title{font-size:17px;font-weight:600;margin:0 0 22px}.social-stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px}.social-stage{min-width:0;border-top:3px solid var(--stage-color);padding-top:16px}.social-stage h3{font-size:24px;font-weight:650;margin-bottom:20px}.social-stage h3 small{font:11px ui-monospace,monospace;color:var(--text-2);margin-right:10px}.social-albums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 12px}.social-album{background:none;border:0;text-align:left;min-width:0;display:block;color:var(--text)}.social-art{aspect-ratio:1;background:#e8eeea;border:1px solid #dde6df;border-radius:6px;overflow:hidden;display:grid;place-items:center}.social-art img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity .15s}.social-album:hover img{opacity:.85}.social-art span{font-size:12px;color:#697a70}.social-album strong{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5;font-size:12px;margin-top:9px;overflow-wrap:anywhere;font-weight:600}.social-album .artist{display:block;font-size:11px;line-height:1.6;margin-top:3px;overflow-wrap:anywhere;color:var(--text-2)}.social-empty{font-size:13px;color:var(--text-2);padding:25px 0}.social-genres{margin:42px 0 0;padding:26px;background:#fff;border:1px solid var(--line);border-radius:14px}.social-genre-header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}.social-genre-header p{font-size:12px;color:var(--text-2)}.social-genre-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}.social-genre-stage{border-top:2px solid var(--stage-color);padding-top:13px;min-width:0}.social-genre-stage h3{font-size:15px;font-weight:600;margin-bottom:10px}.social-tags{display:flex;flex-wrap:wrap;gap:6px}.social-tags span{font-size:12px;line-height:1.5;background:#edf4f0;border-radius:5px;padding:5px 8px}.social-genre-stage p{font-size:12px;color:var(--text-2);line-height:1.8}.social-insights{border-top:1px solid var(--line);margin-top:22px;padding-top:18px;font-size:13px;line-height:1.9}.social-insights p+p{margin-top:10px}.social-insights .pending{color:var(--text-2)}.social-foot{display:flex;justify-content:space-between;gap:20px;padding:24px 0;font-size:12px;color:var(--text-2);align-items:center}.social-foot button{background:none;border:0;min-height:44px;padding:5px 0;color:var(--text-2)}.auto-genre-status{font-size:12px;color:var(--text-2);margin-top:15px;line-height:1.8}.social-demo{padding:9px;text-align:center;background:#e9f0eb;font-size:12px;color:var(--text-2)}.social-demo a{color:#285f59;margin-left:12px}
+.social-overlay{position:fixed;inset:0;z-index:100;background:#233b3159;backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:20px}.social-dialog{width:min(640px,100%);max-height:92dvh;overflow:auto;background:#f7f8f5;border:1px solid #d6e2d8;border-radius:16px;padding:22px;box-shadow:0 20px 70px #28332f22}.social-dialog h2{font-size:20px}.social-dialog p{font-size:13px;line-height:1.9;color:var(--text-2);margin:12px 0}.social-dialog img{display:block;width:100%;height:auto;border-radius:6px}.social-dialog .social-actions{position:sticky;bottom:-22px;flex-wrap:wrap;padding:14px 0;background:#f7f8f5}.social-dialog .social-actions>*{flex:1}.social-dialog .export-hint{margin:12px 0;font-size:12px}.social-dialog .social-image-wrap{max-height:58dvh;overflow:auto}.social-dialog .social-image-wrap img{-webkit-touch-callout:default;user-select:auto}.social-dialog a{color:#397f78}
+@media(min-width:901px){#entry #albumForm{display:grid;grid-template-columns:1fr 1fr;gap:12px}#entry .slot{margin:0}#entry .add-slot{grid-column:1/-1}.topbar{margin-bottom:18px}}
+@media(max-width:900px){.social-shell{padding:0 24px}.social-stages,.social-genre-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:30px 24px}.social-albums{grid-template-columns:repeat(3,minmax(0,1fr))}.social-genre-header p{margin-bottom:16px}}
+@media(max-width:560px){.social-shell{padding:0 20px}.social-top{min-height:72px;gap:10px}.social-brand{font-size:14px;white-space:nowrap}.social-actions{gap:7px}.social-btn{font-size:12px;padding:9px 12px}.social-heading{padding:28px 0}.social-heading h1{font-size:28px}.social-stages{grid-template-columns:1fr;gap:30px}.social-albums{gap:20px 12px}.social-stage h3{font-size:25px;margin-bottom:16px}.social-genres{padding:20px;margin-top:34px}.social-genre-grid{gap:22px 16px}.social-tags span{font-size:11px}.social-insights{font-size:12px}.social-foot{align-items:flex-start;font-size:11px;line-height:1.8}.social-dialog{padding:16px}.social-overlay{padding:12px}.social-dialog .social-actions{bottom:-16px}.slot-badge{display:none}.home-card{padding:30px 22px}.social-module-title{font-size:16px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* Only populated stages occupy result columns. */
+.social-stages,.social-genre-grid{grid-template-columns:repeat(var(--stage-count,4),minmax(0,1fr))}
+.social-stages[data-stage-count="1"] .social-albums,.social-stages[data-stage-count="2"] .social-albums{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:900px){.social-stages,.social-genre-grid{grid-template-columns:repeat(min(2,var(--stage-count,4)),minmax(0,1fr))}.social-stages[data-stage-count="2"] .social-albums{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:560px){.social-stages{grid-template-columns:1fr}.social-stages[data-stage-count] .social-albums{grid-template-columns:repeat(3,minmax(0,1fr))}.social-genre-grid{grid-template-columns:repeat(min(2,var(--stage-count,4)),minmax(0,1fr))}}
+
+.home-turntable{width:116px;margin:0 auto 24px}.home-turntable svg{display:block;width:100%;height:auto}
+
+.album-entry-card{min-width:0;width:100%;align-self:start}.album-entry-card .slot{height:auto;min-height:72px}.album-entry-card .slot-add{width:100%;height:72px;min-height:72px;max-height:72px;box-sizing:border-box}.album-entry-card .genre-edit{margin:0;padding:8px 10px;min-height:44px}.entry-local-note{font-size:13px}
+#genreSheet{color-scheme:light}#genreSheet [hidden]{display:none!important}#genreSheet .sheet-head{padding-bottom:15px;border-bottom:1px solid var(--line)}#genreSheet .sheet-body{padding-top:20px}#genreSheet .genre-form{max-width:620px}#genreSheet select,#genreSheet select option{background:#fff;color:#28332f;color-scheme:light}#genreSheet select{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:10px;padding:12px;min-height:46px}#genreSheet label,.genre-role-label{display:block;font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text)}.genre-album-name{font-size:17px;font-weight:650;line-height:1.6;overflow-wrap:anywhere}.genre-help{font-size:13px;line-height:1.7;color:var(--text-2);margin:6px 0 18px}#genreSelected{padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-bottom:22px}.genre-selected-line{display:grid;grid-template-columns:100px 1fr;gap:8px;align-items:center;margin:0;padding:6px 0}.genre-selected-line strong{font-size:12px;font-weight:600}.genre-selected-line strong small{color:var(--text-2);font-weight:400;margin-left:5px}.genre-unselected{display:inline-block;color:#77847d;font-size:12px;padding:8px 0}.genre-role-tabs{display:flex;background:#e8eeea;padding:4px;border-radius:10px;gap:4px;margin-bottom:20px}.genre-role-tabs button{width:50%;min-height:44px;border:0;background:transparent;border-radius:7px;color:var(--text-2);font:inherit;font-size:14px}.genre-role-tabs button[aria-pressed=true]{background:#397f78;color:#fff;font-weight:600}.genre-query-field{margin-bottom:16px}#genreQuery{width:100%;border:1px solid #a8c5bc!important;border-radius:10px;padding:13px 14px;min-height:48px;font-size:16px;font-family:inherit;background:#fff}.genre-category-field{display:grid;grid-template-columns:80px 1fr;align-items:center;gap:12px}.genre-category-field label{margin:0;font-weight:400;color:var(--text-2)}.genre-results-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 0 10px;min-height:30px}.genre-results-head p{font-size:13px;font-weight:600;line-height:1.6;overflow-wrap:anywhere}.genre-results-head button{background:none;border:0;color:var(--teal);white-space:nowrap;min-height:44px;font-size:12px}#genreChoices{display:flex;flex-wrap:wrap;gap:8px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;min-height:85px}#genreSheet .genre-chip{font-size:13px;min-height:44px;margin:0;padding:9px 13px;border-radius:9px;background:#f8faf8;color:#41534a}#genreSheet .genre-chip.chosen{background:#deeee8;border-color:#397f78;color:#285f59;font-weight:600}#genreSheet .genre-chip small{display:block;font-size:10px;font-weight:400;color:var(--text-2);margin-top:2px}#genreSelected .genre-chip{min-height:36px;margin:3px 5px 3px 0;font-size:12px;padding:7px 9px}.genre-no-results{font-size:13px;line-height:1.8;color:var(--text-2)}.genre-extra{margin-top:20px;border-top:1px solid var(--line);padding-top:16px}.genre-extra summary{font-size:13px;color:var(--text-2);cursor:pointer;min-height:36px}.genre-extra label{margin-top:10px}#genreCustom{width:100%;border:1px solid var(--line);border-radius:10px;min-height:46px;padding:12px;font:inherit;font-size:14px}#genreSource{font-size:12px;line-height:1.8;margin-top:12px;overflow-wrap:anywhere}#genreSource a{color:var(--teal)}.genre-save-bar{display:flex;align-items:center;gap:12px;position:sticky;bottom:-40px;background:#f7f8f5;padding:14px 0 max(14px,env(safe-area-inset-bottom));border-top:1px solid var(--line);margin-top:18px}.genre-save-bar .manual-save{flex:1;margin:0;min-height:48px}.genre-save-bar .manual-btn{margin:0;padding:10px 12px;min-height:48px;font-size:13px;color:var(--text-2)}
+@media(max-width:560px){.genre-selected-line{grid-template-columns:88px 1fr}#genreSelected{padding:10px 12px}.genre-save-bar{gap:7px}.genre-category-field{grid-template-columns:70px 1fr}.genre-album-name{font-size:16px}#genreChoices{padding:12px;gap:7px}}
+#genreSelected{margin-top:16px}.genre-save-bar .manual-save{width:auto;min-width:0}.genre-save-bar .manual-btn{width:auto;flex:0 0 auto}.genre-save-bar .manual-save,.genre-save-bar .manual-btn{white-space:nowrap}
+.album-genre-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0 0}.album-genre-labels{min-width:0;font-size:12px;line-height:1.7;color:var(--text-2);overflow-wrap:anywhere}.album-entry-card .album-genre-action{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;margin:0;padding:7px 11px;min-height:44px;border:0;border-radius:0;background:transparent;color:#397f78;font-size:12px;font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;cursor:pointer}.album-entry-card .album-genre-action:hover{background:transparent;color:#285f59}.album-entry-card .album-genre-action:active{background:transparent;color:#204e48}
+.catalog-pager{flex-shrink:0;width:100%;padding:6px 18px max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#f7f8f5}.catalog-pager[hidden]{display:none!important}.catalog-page-nav{display:flex;align-items:center;justify-content:center;gap:12px}.catalog-page-nav button{display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;padding:0;border:0;background:transparent;cursor:pointer}.catalog-page-nav button:disabled{opacity:.25;cursor:default}.catalog-triangle{display:block;width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent}.catalog-triangle.previous{border-right:12px solid #397f78}.catalog-triangle.next{border-left:12px solid #397f78}.catalog-page-count{min-width:50px;text-align:center;font-size:14px;font-variant-numeric:tabular-nums;color:var(--text)}.catalog-page-status{text-align:center;font-size:12px;line-height:1.7;color:var(--text-2);padding:0 0 4px}.catalog-page-status button{border:0;background:transparent;color:var(--teal);text-decoration:underline;padding:5px 8px;font:inherit;cursor:pointer}
+
+#genreSheet .genre-category-field{grid-template-columns:1fr;gap:0}#genreSheet .genre-category-field label{white-space:nowrap}#genreSheet .genre-album-name{margin-bottom:16px}
+
+/* Readable numbering and entry text at desktop and phone sizes. */
+.stage-tab .num{font-family:inherit;font-size:14px;font-weight:600;line-height:1.4;margin-bottom:3px;color:#64776e}
+.slot .idx{font-family:inherit;font-size:15px;font-weight:600;color:#64776e;width:22px;text-align:center}
+.stage-tab{font-size:16px}.slot-album{font-size:16px}.slot-artist{font-size:14px}.slot-add{font-size:16px}
+#entry .entry-local-note,.album-genre-labels,.album-genre-action{font-size:14px}
+.home-turntable{width:142px}
+@media(max-width:560px){.stage-tab .num{font-size:13px}.stage-tab{font-size:14px}.slot .idx{font-size:14px;width:20px}.slot-album{font-size:15px}.slot-artist{font-size:13px}}
+
+.social-actions [hidden]{display:none!important}
+/* Alternative B: a flat record catalogue, isolated from the released design. */
+.home-card.glass{background:transparent;border:0;box-shadow:none;backdrop-filter:none;padding:24px 14px;max-width:410px}
+.home-title{margin-bottom:30px}.home-turntable{margin-bottom:20px}
+.home-nick input{border-radius:4px;background:#fff;border:1px solid #cdd8cf;min-height:50px}
+.btn-primary,.btn-ghost,.manual-save,.manual-btn,.social-btn{border-radius:4px}
+.stage-tabs{gap:0;border-bottom:1px solid var(--line);margin-top:20px}
+.stage-tab,.stage-tab.current{background:transparent;border:0;border-radius:0;padding:12px 4px 16px;color:#6b7871;box-shadow:none;min-width:0}
+.stage-tab.current{color:#397f78;box-shadow:inset 0 -3px #397f78}
+.stage-tab .num{font-size:12px;letter-spacing:.08em;margin-bottom:6px}.stage-tab.current .num{color:#397f78}
+.stage-tab .tab-cnt{top:1px;right:8px;min-width:16px;height:16px;font-size:10px;background:#e3ece6;color:#397f78;border-radius:3px}
+.stage-tab.current .tab-cnt{background:#e3ece6;color:#397f78}
+#albumForm{gap:20px 28px}.album-entry-card{border-bottom:1px solid var(--line);padding-bottom:12px}
+.album-entry-card .slot,.slot{border:0;border-radius:0;background:transparent;box-shadow:none;padding:12px 0;gap:14px}
+.slot-cover{border-radius:2px}.slot .idx{color:#738278;font-size:14px;width:22px}.slot-del{background:transparent;border-radius:0;width:40px;color:#728077}
+.album-entry-card .slot-add,.slot-add{border:0;border-radius:0;background:transparent;justify-content:flex-start;padding:12px 0}
+.slot-add:hover{background:#edf2ed}.slot-add .plus{font-size:20px}.album-genre-row{padding-top:0;gap:8px}.album-entry-card .album-genre-action{padding-right:0;padding-left:4px;font-size:13px}
+#albumForm>.add-slot{border:0;border-top:1px solid var(--line);border-radius:0;justify-content:center;margin-top:0}
+.entry-local-note{margin:22px 0!important}.entry-footer{border-top:0}.topbar{border-bottom:0}
+.search-mode{border-radius:0;background:transparent;border-bottom:1px solid var(--line);padding:0}.search-mode button{border-radius:0;background:transparent}.search-mode button.on{background:transparent;color:#397f78;box-shadow:inset 0 -2px #397f78}
+.sheet input,.sheet select,#genreQuery,#genreCustom,#genreSheet select{border-radius:4px}
+#genreChoices,#genreSelected{border:0;border-radius:0;background:transparent;padding:10px 0}
+#genreSelected{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+#genreSheet .genre-chip{border:0;border-radius:3px;background:transparent}#genreSheet .genre-chip.chosen{background:#deeee8}
+.manual-box{border-radius:4px}.social-genres{border:0;border-top:1px solid var(--line);border-radius:0;background:transparent;padding:26px 0}.social-art{border-radius:2px;border:0}.social-tags span{border-radius:2px;background:#e9efea}.social-dialog{border-radius:5px}.social-image-wrap{border-radius:0}
+@media(max-width:560px){.home-card.glass{padding:24px 8px}.stage-tab{font-size:14px}.stage-tab .tab-cnt{right:3px}.album-entry-card .album-genre-action{font-size:12px}.album-genre-labels{font-size:13px}.social-genres{padding:20px 0}}
+
+.stage-tab .tab-cnt{box-shadow:none}
+
+/* Album contents start at the same baseline regardless of title length. */
+.social-albums{align-items:start}.social-album{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;align-self:start;padding:0;margin:0;vertical-align:top;font:inherit}
+.social-art{width:100%;flex:none;aspect-ratio:1;line-height:0}.social-art img{aspect-ratio:1;object-fit:cover}.social-album strong{min-height:3em;margin-top:9px}.social-album .artist{margin-top:3px}
+/* Binder divider tabs; the selected divider meets the baseline. */
+.stage-tabs{gap:6px;align-items:stretch;border-bottom:1px solid #cbbba4;padding-top:8px}
+.stage-tab,.stage-tab.current{border:1px solid transparent;border-bottom:0;box-shadow:none;border-radius:7px 7px 0 0;padding:12px 4px 15px;background:transparent}
+.stage-tab.current{background:#eee9dc;border-color:#cbbba4;color:#365f55;position:relative}
+.stage-tab.current::after{content:"";position:absolute;bottom:-1px;left:0;right:0;height:2px;background:#eee9dc}
+.stage-tab.current .num{color:#365f55}.stage-tab .tab-cnt,.stage-tab.current .tab-cnt{background:#e5dccd;color:#695b47;box-shadow:none;top:5px;right:6px}
+#genreSheet .genre-chip{border:1px solid #cdbfa9;border-radius:4px;background:#f5f0e6;color:#655c4d;padding:9px 13px}
+#genreSheet .genre-chip.chosen{border-color:#9b805b;background:#e8dcc7;color:#594831;font-weight:600}
+.social-tags span{border:1px solid #cdbfa9;border-radius:3px;background:#f5f0e6;color:#655c4d}
+@media(max-width:560px){.stage-tabs{gap:3px}.stage-tab,.stage-tab.current{padding:16px 2px 12px;border-radius:5px 5px 0 0}.stage-tab .tab-cnt{top:2px;right:3px;font-size:9px;min-width:13px;height:13px}}
+
+/* Green binder dividers and individually bordered genre choices. */
+.stage-tabs{border-bottom-color:#abc7bd}.stage-tab.current{background:#e2eee7;border-color:#abc7bd;color:#285f59}.stage-tab.current::after{background:#e2eee7}.stage-tab.current .num{color:#285f59}
+.stage-tab .tab-cnt,.stage-tab.current .tab-cnt{background:#d9e9df;color:#397f78}
+#genreSheet #genreChoices .genre-chip,#genreSheet #genreSelected .genre-chip{border:1px solid #abc2b5!important;border-radius:4px;background:#fff;color:#41584c;box-shadow:none;min-height:44px;padding:9px 13px}
+#genreSheet #genreChoices .genre-chip.chosen,#genreSheet #genreSelected .genre-chip.chosen{border-color:#397f78!important;background:#deeee6;color:#285f59}
+.social-tags span{border-color:#abc2b5;background:#edf4ef;color:#41584c}
+
+/* Compact four-album rows and consistent native controls on iOS. */
+#genreSheet #genreQuery,#genreSheet #genreGroups{box-sizing:border-box;height:48px;min-height:48px;max-height:48px;font-size:16px;line-height:22px;padding:12px 14px}
+#genreSheet #genreGroups{appearance:none;-webkit-appearance:none;padding-right:38px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23596960' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 14px center}
+#genreSheet .genre-extra summary{font-weight:650;text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px;color:#397f78}
+.social-stages{grid-template-columns:1fr!important;gap:28px}.social-stages[data-stage-count] .social-albums,.social-albums{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:18px 12px}
+.social-album strong{font-size:12px;line-height:1.45;min-height:2.9em}.social-album .artist{font-size:11px;line-height:1.45}
+@media(max-width:560px){.social-shell{padding:0 16px}.social-stages[data-stage-count] .social-albums{gap:14px 7px}.social-album strong{font-size:10px;line-height:1.4;min-height:2.8em;margin-top:6px}.social-album .artist{font-size:9px;line-height:1.4;margin-top:3px}.social-stage h3{font-size:22px;margin-bottom:14px}.social-stages{gap:24px}}
+
+.social-album strong{--album-title-size:12;display:block!important;-webkit-line-clamp:unset;overflow:visible;white-space:pre-wrap;overflow-wrap:normal;word-break:normal;min-height:0;font-size:12px}
+@media(max-width:560px){.social-album strong{--album-title-size:10;font-size:10px}}
+
+#artistSuggestions[hidden]{display:none!important}#artistSuggestions{margin:0 0 18px}.artist-suggest-heading{font-size:13px;color:#596960;margin:0 0 8px}
+.artist-option{display:grid;grid-template-columns:1fr auto;gap:3px 12px;align-items:center;width:100%;min-height:56px;padding:12px 0;border:0;border-bottom:1px solid #dce4dd;background:transparent;text-align:left;color:#28332f;cursor:pointer}
+.artist-option strong{font-size:16px;font-weight:600;overflow-wrap:anywhere}.artist-option>span:not(.artist-option-arrow){grid-column:1;font-size:12px;color:#596960;overflow-wrap:anywhere}.artist-option-arrow{grid-column:2;grid-row:1/3;color:#397f78;font-size:20px}.artist-option:hover,.artist-option:focus-visible{background:#edf4ef}
+
+</style>
+</head>
+<body>
+
+<div class="bg-aurora"><span></span><span></span><span></span><span></span></div>
+<div class="bg-covers" id="bgCovers"></div>
+<div class="bg-veil"></div>
+
+<!-- 视图：首页 -->
+<section id="home" class="view active">
+  <div class="home-card glass">
+    <div class="home-turntable"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 140" role="img" aria-label="奶油复古唱片机"><rect x="10" y="17" width="140" height="104" rx="22" fill="#eee9dc" stroke="#a7b5a3" stroke-width="1.6"/><circle cx="64" cy="68" r="40" fill="#397f78" stroke="#397f78" stroke-width="0"/><circle cx="64" cy="68" r="32" fill="none" stroke="#eee9dc" stroke-width="1" opacity=".55"/><circle cx="64" cy="68" r="26" fill="none" stroke="#eee9dc" stroke-width="1" opacity=".55"/><circle cx="64" cy="68" r="13" fill="#eee9dc"/><circle cx="64" cy="68" r="3" fill="#397f78"/><circle cx="125" cy="38" r="7" fill="#397f78" opacity=".4"/><path d="M125 38v34l-17 18" fill="none" stroke="#f9faf6" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="M110 87l-7 7" stroke="#397f78" stroke-width="6" stroke-linecap="round"/><path d="M28 113h55" stroke="#397f78" stroke-width="2" opacity=".4"/><rect x="119" y="102" width="15" height="5" rx="2" fill="#397f78"/></svg></div>
+    <h1 class="home-title">我的音乐履历</h1>
+    
+    <div class="home-nick"><input id="nickInput" aria-label="你的昵称（选填）" maxlength="12" placeholder="请填写昵称"></div>
+    <button class="btn-primary" id="startBtn">开始填写</button>
+  </div>
+</section>
+
+<!-- 视图：录入 -->
+<section id="entry" class="view">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="topbar-title"><span>填写专辑</span><span class="mono" id="progressText">已选 0 张</span></div>
+      <div class="stage-tabs" id="stageTabs"></div>
+    </div>
+    <p class="entry-local-note">每个阶段最多可展示八张专辑</p><div id="albumForm"></div>
+    <div class="entry-footer">
+      <button class="btn-ghost" id="prevBtn">上一步</button>
+      <button class="btn-ghost primary" id="nextBtn">下一步</button>
+    </div>
+  </div>
+</section>
+
+<!-- 视图：结果 -->
+<section id="result" class="view">
+  <div class="wrap" id="resultWrap"></div>
+</section>
+
+<!-- 搜索弹层 -->
+<div id="searchSheet" class="sheet">
+  <div class="sheet-head">
+    <input id="searchInput" placeholder="输入歌手名，如ORESAMA" autocomplete="off">
+    <button id="searchCancel">取消</button>
+  </div>
+  <div class="search-mode" id="searchMode">
+    <button type="button" data-mode="artist" class="on">搜索歌手</button>
+    <button type="button" data-mode="album">搜索专辑名称</button>
+  </div>
+  <div class="sheet-body">
+    <section id="artistSuggestions" hidden role="group" aria-label="歌手联想"></section><div class="sheet-hint" id="searchHint">按歌手名称匹配作品</div>
+    <div id="searchResults"></div>
+    <button class="manual-btn" id="manualBtn">搜不到？手动添加</button>
+    <div class="manual-box" id="manualBox">
+      <div class="field"><input id="mArtist" placeholder="歌手名"></div>
+      <div class="field"><input id="mAlbum" placeholder="专辑名"></div>
+      <div class="field"><input id="mYear" type="number" min="1000" placeholder="发行年份（选填）" aria-label="发行年份（选填）"></div>
+      <div class="manual-cover">
+        <label>上传封面（选填）<input type="file" id="mCover" accept="image/*"></label>
+        <img id="mPreview" style="display:none;">
+        <span class="mc-tip" id="mTip">不传也可以</span>
+      </div>
+      <button class="manual-save" id="mSave">保存这张</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="genreSheet" class="sheet" role="dialog" aria-modal="true" aria-label="补充曲风">
+  <div class="sheet-head"><strong style="flex:1">补充曲风</strong><button id="genreCancel" type="button">关闭</button></div>
+  <div class="sheet-body"><div class="genre-form">
+    <p id="genreAlbum" class="genre-album-name"></p>
+    <select id="genreRole" hidden aria-hidden="true"><option value="main">曲风</option></select>
+    <div class="genre-query-field"><label for="genreQuery">搜索曲风</label><input type="search" id="genreQuery" placeholder="如J-pop" autocomplete="off"></div>
+    <div class="genre-category-field"><label for="genreGroups">按分类查找曲风</label><select id="genreGroups"></select></div>
+    <div class="genre-results-head"><p id="genreMatchStatus" role="status" aria-live="polite"></p><button type="button" id="genreClearQuery" hidden>清除搜索</button></div>
+    <div id="genreChoices" aria-label="可选择的曲风"></div>
+    <section id="genreSelected" aria-label="已选曲风"></section>
+    <details class="genre-extra"><summary>其他曲风或资料链接</summary><label for="genreCustom">补充内容</label><input id="genreCustom" maxlength="100" placeholder="输入曲风名称或资料来源"><p class="genre-footnote">补充内容会保留在你的资料中，暂不参与自动统计。</p></details>
+    <div id="genreSource"></div>
+    <div class="genre-save-bar"><button class="manual-save" id="genreSave" type="button">保存曲风</button><button class="manual-btn" id="genreReset" type="button">恢复原有资料</button></div>
+  </div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<script>
+/* ==================== 配置 ==================== */
+var STAGES=['13岁前','14-18岁','19-24岁','25岁后'];
+var INIT_SLOTS=4;   /* 每个阶段初始空位 */
+var MAX_SLOTS=8;   /* 每个阶段最多可选 */
+var MIN_TOTAL=3;    /* 生成音乐履历至少需要的专辑数 */
+var CURRENT_YEAR=new Date().getFullYear();
+var SEARCH_CAP=100;
+var PROXY_BASE='https://1507762860-iaq3p2ywov.ap-guangzhou.tencentscf.com';
+function emptyAlbum(){return {artist:'',album:'',cover:null,year:null,genre:'',lang:'',source:''};}
+function freshAlbums(){return STAGES.map(function(){var a=[];for(var i=0;i<INIT_SLOTS;i++)a.push(emptyAlbum());return a;});}
+function filledInStage(si){return STATE.albums[si].filter(function(a){return a.artist&&a.album;}).length;}
+var STATE={nick:'',stage:0,albums:freshAlbums()};
+var TARGET={stage:0,idx:0};
+
+function showView(id){
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+var toastTimer=null;
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},1800);
+}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+/* 网易云封面在 p1/p2 两个图床间漂移，加载失败自动换另一个，仍失败再隐藏 */
+function coverOnError(img){
+  var s=img.src;
+  if(s.indexOf('p1.music.126.net')>=0){img.onerror=null;img.src=s.replace('p1.music.126.net','p2.music.126.net');return;}
+  if(s.indexOf('p2.music.126.net')>=0){img.onerror=null;img.src=s.replace('p2.music.126.net','p1.music.126.net');return;}
+  img.onerror=null;img.style.visibility='hidden';
+}
+
+/* ==================== 背景封面虚化 ==================== */
+function updateBg(){
+  var covers=getAll().map(function(a){return a.cover;}).filter(Boolean);
+  var n=Math.min(6,covers.length),picked=[];
+  for(var i=0;i<n;i++){picked.push(covers[Math.floor(i*covers.length/n)]);}
+  var el=document.getElementById('bgCovers');
+  el.innerHTML=picked.map(function(u){return '<img src="'+u+'" onerror="coverOnError(this)">';}).join('');
+  el.classList.toggle('on',picked.length>0);
+}
+
+/* ==================== 专辑搜索（网易云 + QQ + iTunes，全部走云函数） ==================== */
+function fetchJson(url,timeout){
+  var ctrl=new AbortController();
+  var timer=setTimeout(function(){ctrl.abort();},timeout);
+  return fetch(url,{signal:ctrl.signal}).then(function(r){
+    if(!r.ok)throw new Error('http '+r.status);
+    return r.json();
+  }).then(function(j){clearTimeout(timer);return j;});
+}
+/* 云函数冷启动偶发 433，失败后补一次重试 */
+function fetchJsonRetry(url,timeout){
+  return fetchJson(url,timeout).catch(function(){
+    return new Promise(function(res){setTimeout(function(){res(fetchJson(url,timeout));},700);});
+  });
+}
+
+function normCNItem(x){
+  var it={artist:x.artist||'',album:x.album||'',cover:x.cover||'',
+          albumId:x.albumId||'',releaseDate:x.releaseDate||'',artists:x.artists||[],year:x.year?parseInt(x.year,10):null,source:x.source};
+  it.genreName=x.genreName||'';it.genre='';it.lang='';
+  if(it.source==='qq'&&it.cover)it.cover=PROXY_BASE+'/img?u='+encodeURIComponent(it.cover);
+  return it;
+}
+
+function searchNorm(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/\s+/g,'');}
+function matchesSearch(item,q,mode){
+  var k=searchNorm(q);if(!k)return false;
+  if(mode==='album')return searchNorm(item.album)===k;
+  var names=item.artists&&item.artists.length?item.artists:[item.artist];
+  return names.some(function(name){return searchNorm(name)===k;});
+}
+
+function searchAlbums(q,mode){
+  mode=mode||'artist';
+  var u=encodeURIComponent(q);
+  var cnOk=true;
+  var ne=fetchJsonRetry(PROXY_BASE+'/search/netease?kw='+u+'&mode='+mode,10000).then(function(j){
+    return (j&&j.ok?j.data:[]).map(normCNItem);
+  }).catch(function(){cnOk=false;return [];});
+  var qq=fetchJsonRetry(PROXY_BASE+'/search/qq?kw='+u+'&mode='+mode,10000).then(function(j){
+    return (j&&j.ok?j.data:[]).map(normCNItem);
+  }).catch(function(){cnOk=false;return [];});
+  var it=fetchJsonRetry(PROXY_BASE+'/search/itunes?kw='+u+'&mode='+mode,10000).then(function(j){
+    return (j&&j.ok?j.data:[]).map(function(x){
+      var it={artist:x.artist||'',album:x.album||'',cover:x.cover||'',
+              albumId:x.albumId||'',releaseDate:x.releaseDate||'',artists:x.artists||[],year:x.year?parseInt(x.year,10):null,source:'itunes',genreName:x.genreName||''};
+      it.genre='';it.lang='';
+      return it;
+    });
+  }).catch(function(){return [];});
+  return Promise.all([ne,qq,it]).then(function(res){
+    var neList=res[0],qqList=res[1],itList=res[2];
+    var seen=new Set(),out=[];
+    function push(it){
+      if(!it.artist||!it.album||!matchesSearch(it,q,mode))return;
+      // 保留 Live、重录、豪华版等版本信息，避免误合并不同作品。
+      var key=searchNorm(it.artist)+'|'+searchNorm(it.album);
+      if(seen.has(key))return;seen.add(key);out.push(it);
+    }
+    neList.forEach(push);qqList.forEach(push);itList.forEach(push);
+    out.sort(function(a,b){
+      return String(b.releaseDate||b.year||'').localeCompare(String(a.releaseDate||a.year||'')) || a.album.localeCompare(b.album);
+    });
+    return {list:out.slice(0,SEARCH_CAP),cnOk:cnOk};
+  });
+}
+
+/* ==================== 首页 ==================== */
+document.getElementById('startBtn').onclick=function(){
+  STATE.nick=document.getElementById('nickInput').value.trim()||'无名氏';
+  STATE.stage=0;renderEntry();showView('entry');
+};
+
+/* ==================== 录入页 ==================== */
+function filledCount(){
+  var n=0;
+  STATE.albums.forEach(function(s){s.forEach(function(a){if(a.artist&&a.album)n++;});});
+  return n;
+}
+function renderTabs(){
+  var el=document.getElementById('stageTabs');el.innerHTML='';
+  STAGES.forEach(function(s,i){
+    var d=document.createElement('button');
+    d.type='button';
+    d.className='stage-tab'+(i===STATE.stage?' current':'');
+    var cnt=filledInStage(i);
+    d.innerHTML='<span class="num">0'+(i+1)+'</span>'+s+(cnt?'<span class="tab-cnt">'+cnt+'</span>':'');
+    d.onclick=function(){STATE.stage=i;renderEntry();};
+    el.appendChild(d);
+  });
+  document.getElementById('progressText').textContent='已选 '+filledCount()+' 张';
+}
+var NOTE_SVG='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="rgba(255,255,255,.32)" stroke-width="1.6"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>';
+/* 删除后收掉末尾多余的空位，最少保留 INIT_SLOTS 个 */
+function pruneStage(si){
+  var list=STATE.albums[si];
+  while(list.length>INIT_SLOTS && !list[list.length-1].artist){list.pop();}
+}
+function renderEntry(){
+  renderTabs();
+  var box=document.getElementById('albumForm');box.innerHTML='';
+  var si=STATE.stage,list=STATE.albums[si];
+  list.forEach(function(a,idx){
+    var btn=document.createElement('button');
+    btn.type='button';
+    if(!a.artist){
+      btn.className='slot slot-add';
+      btn.innerHTML='<span class="idx">'+(idx+1)+'</span><span class="plus">+</span>添加专辑';
+    }else{
+      btn.className='slot';
+      var cover=a.cover?'<img class="slot-cover" src="'+a.cover+'" onerror="coverOnError(this)">':'<span class="slot-cover ph">'+NOTE_SVG+'</span>';
+      var badge=a.source==='manual'?'<span class="slot-badge">手动添加</span>':'';
+      btn.innerHTML='<span class="idx">'+(idx+1)+'</span>'+cover+
+        '<span class="slot-meta"><div class="slot-album">'+esc(a.album)+'</div><div class="slot-artist">'+esc(a.artist)+(a.year?' · '+a.year:'')+'</div></span>'+
+        badge+'<span class="slot-del" data-del="'+idx+'">×</span>';
+    }
+    btn.onclick=function(e){
+      if(e.target&&e.target.dataset&&e.target.dataset.del!==undefined){
+        e.stopPropagation();
+        STATE.albums[si][+e.target.dataset.del]=emptyAlbum();
+        pruneStage(si);
+        renderEntry();
+      }else{
+        openSearch(si,idx);
+      }
+    };
+    box.appendChild(btn);
+  });
+  /* 追加空位 */
+  if(list.length<MAX_SLOTS){
+    var add=document.createElement('button');
+    add.type='button';
+    add.className='slot slot-add add-slot';
+    add.innerHTML='<span class="plus">+</span>再加一张（最多 '+MAX_SLOTS+' 张）';
+    add.onclick=function(){
+      list.push(emptyAlbum());
+      renderEntry();
+      openSearch(si,list.length-1);
+    };
+    box.appendChild(add);
+  }
+  document.getElementById('prevBtn').style.visibility=STATE.stage===0?'hidden':'visible';
+  document.getElementById('nextBtn').textContent=STATE.stage===3?'生成音乐履历':'下一步';
+  updateBg();
+}
+/* 一张填好后：当前阶段没有空位且还没到上限时，自动补一个空位 */
+function afterPick(si){
+  var list=STATE.albums[si];
+  if(!list.some(function(a){return !a.artist;}) && list.length<MAX_SLOTS){
+    list.push(emptyAlbum());
+  }
+}
+document.getElementById('prevBtn').onclick=function(){if(STATE.stage>0){STATE.stage--;renderEntry();}};
+document.getElementById('nextBtn').onclick=function(){
+  if(STATE.stage<3){STATE.stage++;renderEntry();}
+  else{
+    if(filledCount()<MIN_TOTAL){toast('请选择至少 '+MIN_TOTAL+' 张专辑');return;}
+    renderResult();showView('result');
+  }
+};
+
+/* ==================== 搜索弹层 ==================== */
+var sheet=document.getElementById('searchSheet');
+var searchInput=document.getElementById('searchInput');
+var searchResults=document.getElementById('searchResults');
+var searchHint=document.getElementById('searchHint');
+var manualBox=document.getElementById('manualBox');
+var searchTimer=null;
+var searchSequence=0;
+var searchMode='artist';
+function modeHint(){
+  return searchMode==='artist'?'按歌手名称匹配作品':'按专辑名称匹配作品';
+}
+function setSearchMode(mode){
+  searchMode=mode;
+  document.querySelectorAll('#searchMode button').forEach(function(b){
+    b.classList.toggle('on',b.dataset.mode===mode);
+  });
+  searchInput.placeholder=mode==='artist'?'输入歌手名，如ORESAMA':'输入专辑名，如Hi-Fi POPS';
+  if(searchInput.value.trim())searchInput.dispatchEvent(new Event('input'));
+  else searchHint.textContent=modeHint();
+}
+document.querySelectorAll('#searchMode button').forEach(function(b){
+  b.onclick=function(){setSearchMode(b.dataset.mode);};
+});
+function openSearch(stage,idx){
+  TARGET={stage:stage,idx:idx};
+  searchInput.value='';searchResults.innerHTML='';clearCatalogPager();
+  manualBox.classList.remove('show');
+  setSearchMode('artist');
+  sheet.classList.add('show');
+  setTimeout(function(){searchInput.focus();},80);
+}
+function closeSearch(){searchSequence++;clearTimeout(searchTimer);sheet.classList.remove('show');}
+document.getElementById('searchCancel').onclick=closeSearch;
+document.getElementById('manualBtn').onclick=function(){
+  manualBox.classList.toggle('show');
+  if(manualBox.classList.contains('show'))document.getElementById('mArtist').focus();
+};
+searchInput.addEventListener('input',function(){
+  var requestId=++searchSequence;
+  clearArtistSuggestions();
+  var q=searchInput.value.trim();
+  searchResults.innerHTML='';clearCatalogPager();
+  clearTimeout(searchTimer);
+  if(q.length<1){searchResults.innerHTML='';clearCatalogPager();searchHint.textContent=modeHint();return;}
+  searchHint.textContent='搜索中…';
+  var mode=searchMode;
+  searchTimer=setTimeout(function(){
+    if(mode==='artist'){searchArtistQuery(q,requestId);return;}
+    searchAlbums(q,mode).then(function(res){
+      if(requestId!==searchSequence)return;
+      renderSearchResponse(res,q,mode,requestId,true);
+    }).catch(function(){if(requestId===searchSequence)searchHint.textContent='曲库暂时无法连接，可稍后重试或手动添加';});
+  },180);
+});
+searchResults.addEventListener('click',function(e){
+  var row=e.target.closest('.res-row');if(!row)return;
+  var it=JSON.parse(decodeURIComponent(row.dataset.pick));
+  var a=STATE.albums[TARGET.stage][TARGET.idx];
+  a.artist=it.artist;a.album=it.album;a.cover=it.cover;a.year=it.year;
+  a.genre='';a.lang='';a.albumId=it.albumId||'';a.genreName=it.genreName||'';a.releaseDate=it.releaseDate||'';a.source=it.source||'itunes';
+  afterPick(TARGET.stage);
+  closeSearch();renderEntry();
+});
+
+/* 手动添加 */
+var mCoverData=null;
+document.getElementById('mCover').addEventListener('change',function(e){
+  var f=e.target.files[0];if(!f)return;
+  compress(f,function(d){
+    mCoverData=d;
+    var img=document.getElementById('mPreview');img.src=d;img.style.display='block';
+    document.getElementById('mTip').textContent='已选好';
+  });
+});
+document.getElementById('mSave').onclick=function(){
+  var ar=document.getElementById('mArtist').value.trim();
+  var al=document.getElementById('mAlbum').value.trim();
+  if(!ar||!al){toast('歌手和专辑名都要填');return;}
+  var a=STATE.albums[TARGET.stage][TARGET.idx];
+  var y=Number(document.getElementById('mYear').value);
+  if(document.getElementById('mYear').value&&(!Number.isInteger(y)||y<1000||y>CURRENT_YEAR)){toast('请填写有效的发行年份');return;}
+  a.artist=ar;a.album=al;a.cover=mCoverData;a.year=y||null;a.albumId='';a.genre='';a.lang='';a.genreName='';a.source='manual';
+  afterPick(TARGET.stage);
+  mCoverData=null;
+  document.getElementById('mArtist').value='';document.getElementById('mAlbum').value='';document.getElementById('mYear').value='';
+  document.getElementById('mCover').value='';document.getElementById('mPreview').style.display='none';
+  document.getElementById('mTip').textContent='不传也可以';
+  closeSearch();renderEntry();
+};
+function compress(file,cb){
+  var reader=new FileReader();
+  reader.onload=function(){
+    var img=new Image();
+    img.onload=function(){
+      var size=300,c=document.createElement('canvas');c.width=size;c.height=size;
+      var ctx=c.getContext('2d');
+      var s=Math.min(img.width,img.height),sx=(img.width-s)/2,sy=(img.height-s)/2;
+      ctx.drawImage(img,sx,sy,s,s,0,0,size,size);
+      cb(c.toDataURL('image/jpeg',0.72));
+    };
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ==================== 分析引擎 ==================== */
+function getAll(){var all=[];STATE.albums.forEach(function(s){s.forEach(function(a){if(a.artist&&a.album)all.push(a);});});return all;}
+function saveImage(){
+  if(typeof html2canvas!=='function'){toast('图片工具尚未加载，可稍后重试或截图保存');return;}
+  var btn=document.getElementById('saveBtn');btn.textContent='生成中...';btn.disabled=true;
+  html2canvas(document.getElementById('capture'),{scale:2,backgroundColor:'#0A0E14',useCORS:true,allowTaint:false}).then(function(cv){
+    var a=document.createElement('a');
+    a.download='我的音乐履历-'+STATE.nick+'.png';
+    a.href=cv.toDataURL('image/png');
+    a.click();btn.textContent='保存图片';btn.disabled=false;
+  }).catch(function(){toast('生成失败，可直接截图保存');btn.textContent='保存图片';btn.disabled=false;});
+}
+</script>
+<script>
+/* v8: evidence-based music history; all contributions stay on this device. */
+var GENRE_GROUPS=[
+  ['pop','流行','pop:流行:Pop|j-pop:J-pop:日本流行 日系流行 Japanese Pop|indie-pop:独立流行:Indie Pop|alternative-pop:另类流行:Alternative Pop|art-pop:艺术流行:Art Pop|dream-pop:梦幻流行:Dream Pop|bedroom-pop:卧室流行:Bedroom Pop|synth-pop:合成器流行:Synth-pop|electropop:电子流行:Electropop|dance-pop:舞曲流行:Dance Pop|city-pop:City Pop:城市流行|shibuya-kei:涩谷系:Shibuya-kei'],
+  ['rock','摇滚','rock:摇滚:Rock|indie-rock:独立摇滚:Indie Rock|alternative-rock:另类摇滚:Alternative Rock|pop-rock:流行摇滚:Pop Rock|post-rock:后摇:Post Rock|math-rock:数学摇滚:Math Rock|shoegaze:盯鞋:Shoegaze 自赏|psychedelic-rock:迷幻摇滚:Psychedelic Rock|progressive-rock:前卫摇滚:Progressive Rock|garage-rock:车库摇滚:Garage Rock|noise-rock:噪音摇滚:Noise Rock'],
+  ['punk','朋克','punk:朋克摇滚:Punk Rock|pop-punk:流行朋克:Pop Punk|post-punk:后朋克:Post Punk|hardcore-punk:硬核朋克:Hardcore Punk|emo:Emo:情绪摇滚|screamo:Screamo:尖叫情绪'],
+  ['metal','金属','metal:金属:Metal|heavy-metal:重金属:Heavy Metal|alternative-metal:另类金属:Alternative Metal|nu-metal:新金属:Nu Metal|metalcore:金属核:Metalcore|post-metal:后金属:Post Metal|death-metal:死亡金属:Death Metal|black-metal:黑金属:Black Metal|doom-metal:厄运金属:Doom Metal'],
+  ['electronic','电子与舞曲','electronic:电子:Electronic|house:House:浩室|techno:Techno:铁克诺|trance:Trance:出神|uk-garage:UK Garage:英国车库|drum-bass:Drum & Bass:鼓打贝斯 DnB|dubstep:Dubstep:回响贝斯|breakbeat:Breakbeat:碎拍|idm:IDM:智能舞曲|trip-hop:Trip-hop:神游舞曲|future-bass:Future Bass:未来贝斯|synthwave:Synthwave:合成器浪潮|chiptune:Chiptune:芯片音乐'],
+  ['hiphop','嘻哈与说唱','hiphop:嘻哈:Hip-hop Rap 说唱|boom-bap:Boom Bap:黄金年代嘻哈|trap:Trap:陷阱说唱|drill:Drill:钻头说唱|jazz-rap:爵士说唱:Jazz Rap|alternative-hiphop:另类嘻哈:Alternative Hip-hop|experimental-hiphop:实验嘻哈:Experimental Hip-hop|cloud-rap:云说唱:Cloud Rap'],
+  ['soul','R&B 与灵魂乐','rnb:R&B:节奏布鲁斯|contemporary-rnb:当代 R&B:Contemporary R&B|alternative-rnb:另类 R&B:Alternative R&B|neo-soul:Neo Soul:新灵魂乐|soul:灵魂乐:Soul|gospel:福音乐:Gospel'],
+  ['disco','放克与迪斯科','funk:放克:Funk|disco:迪斯科:Disco|disco-pop:迪斯科流行:Disco Pop|nu-disco:Nu-disco:新迪斯科|boogie:Boogie:布吉|electro-funk:Electro-funk:电子放克'],
+  ['jazz','爵士与蓝调','jazz:爵士:Jazz|traditional-jazz:传统爵士:Traditional Jazz|bebop:Bebop:比波普|cool-jazz:Cool Jazz:冷爵士|jazz-fusion:融合爵士:Jazz Fusion|free-jazz:自由爵士:Free Jazz|jazz-funk:爵士放克:Jazz Funk|electro-swing:电子摇摆:Electro Swing|blues:蓝调:Blues 布鲁斯|electric-blues:电声蓝调:Electric Blues'],
+  ['folk','民谣与乡村','folk:民谣:Folk|contemporary-folk:当代民谣:Contemporary Folk|indie-folk:独立民谣:Indie Folk|psychedelic-folk:迷幻民谣:Psychedelic Folk|folk-rock:民谣摇滚:Folk Rock|country:乡村:Country|americana:Americana:美式根源|bluegrass:Bluegrass:蓝草|alternative-country:另类乡村:Alternative Country'],
+  ['reggae','雷鬼与斯卡','reggae:雷鬼:Reggae|roots-reggae:根源雷鬼:Roots Reggae|dub:Dub:达布|dancehall:Dancehall:舞厅雷鬼|ska:Ska:斯卡|rocksteady:Rocksteady:稳拍'],
+  ['classical','古典与当代作曲','classical:古典:Classical|baroque:巴洛克:Baroque|classicism:古典主义:Classicism|romantic:浪漫主义:Romantic|impressionism:印象主义:Impressionism|minimalism:极简主义:Minimalism|contemporary-classical:当代古典:Contemporary Classical|electroacoustic:电声音乐:Electroacoustic'],
+  ['ambient','氛围与实验','ambient:氛围:Ambient|dark-ambient:暗黑氛围:Dark Ambient|drone:Drone:持续音|noise:噪音:Noise|musique-concrete:具体音乐:Musique concrète|sound-collage:声音拼贴:Sound Collage|free-improvisation:自由即兴:Free Improvisation|experimental:实验:Experimental'],
+  ['traditional','地方与传统音乐','chinese-instrumental:中国传统器乐:民乐|traditional-folk:传统民歌:传统音乐|chinese-opera:戏曲:Chinese Opera|gagaku:雅乐:Gagaku|flamenco:弗拉明戈:Flamenco|gamelan:甘美兰:Gamelan']
+];
+var GENRES=[];
+GENRE_GROUPS.forEach(function(g){g[2].split('|').forEach(function(s){var a=s.split(':');GENRES.push({id:a[0],label:a[1],aliases:a[2]||'',family:g[0]});});});
+var GENRE_BY_ID=new Map(GENRES.map(function(g){return [g.id,g];}));
+// Crossovers retain several analysis families. The browse menu is not a strict taxonomy.
+var GENRE_FAMILIES={'synth-pop':['pop','electronic'],'electropop':['pop','electronic'],'dance-pop':['pop','electronic'],'disco-pop':['pop','disco'],'electro-funk':['disco','electronic'],'nu-disco':['disco','electronic'],'folk-rock':['folk','rock'],'pop-rock':['pop','rock'],'jazz-funk':['jazz','disco'],'electro-swing':['jazz','electronic'],'jazz-rap':['hiphop','jazz']};
+function genreLabel(id){return GENRE_BY_ID.has(id)?GENRE_BY_ID.get(id).label:id;}
+function familyLabel(id){if(id.indexOf('+')>=0)return id.split('+').map(familyLabel).join('、');if(id==='electronic')return '电子';var g=GENRE_GROUPS.find(function(g){return g[0]===id;});return g?g[1]:id;}
+function workKey(a){return searchNorm(a.artist)+'|'+searchNorm(a.album);}
+function seedKey(a){return workKey(a).replace(/[‐‑–—-]/g,'');}
+var EDITORIAL_GENRES=[{key:'oresama|hifipops',main:['disco-pop','electropop'],elements:['funk'],sources:[
+  {title:'Mikiki 专辑访谈',url:'https://mikiki.tokyo.jp/articles/-/17439'},
+  {title:'CINRA 成员访谈',url:'https://www.cinra.net/article/interview-201808-oresama'}
+]}];
+var LOCAL_GENRES={};
+var GENRE_STORAGE_KEY=typeof location!=='undefined'&&location.pathname.indexOf('/preview-v')>=0?'music-id-demo-genres-v8':'music-id-genres-v8';
+try{LOCAL_GENRES=JSON.parse(localStorage.getItem(GENRE_STORAGE_KEY)||'{}');if(!LOCAL_GENRES||typeof LOCAL_GENRES!=='object'||Array.isArray(LOCAL_GENRES))LOCAL_GENRES={};}catch(e){}
+function genreInfo(a){
+  var local=LOCAL_GENRES[workKey(a)];
+  if(local&&Array.isArray(local.main))return {main:local.main.filter(function(id){return GENRE_BY_ID.has(id);}),elements:(local.elements||[]).filter(function(id){return GENRE_BY_ID.has(id);}),custom:local.custom||'',source:'你的补充',sources:[]};
+  // Explicit evidence supplied by the catalog/import; guessed legacy a.genre is never used.
+  if(a.genreEvidence&&Array.isArray(a.genreEvidence.main))return {main:a.genreEvidence.main.filter(function(id){return GENRE_BY_ID.has(id);}),elements:[],custom:'',source:a.genreEvidence.source||'专辑资料',sources:a.genreEvidence.sources||[]};
+  var seed=EDITORIAL_GENRES.find(function(s){return s.key===seedKey(a);});
+  if(seed)return {main:seed.main.slice(),elements:seed.elements.slice(),custom:'',source:'访谈整理',sources:seed.sources};
+  var maps={'pop':'pop','rock':'rock','alternative':'alternative','alternative rock':'alternative-rock','indie rock':'indie-rock','indie pop':'indie-pop','electronic':'electronic','electronica':'electronic','jazz':'jazz','blues':'blues','r&b/soul':'rnb','hip-hop/rap':'hiphop','classical':'classical','country':'country','folk':'folk','dance':'electronic'};
+  var id=maps[String(a.genreName||'').toLowerCase()];
+  return {main:id?[id]:[],elements:[],custom:'',source:id?'曲库分类':'',sources:[]};
+}
+function uniqueWorks(list){var seen=new Set();return list.filter(function(a){var k=workKey(a);if(seen.has(k))return false;seen.add(k);return true;});}
+function validYear(a){var y=Number(a.originalYear||a.year);return Number.isInteger(y)&&y>=1000&&y<=CURRENT_YEAR?y:null;}
+function stageProfile(list){
+  var votes={},known=0,works=uniqueWorks(list);
+  works.forEach(function(a){var main=genreInfo(a).main;if(!main.length)return;known++;
+    main.forEach(function(id){var g=GENRE_BY_ID.get(id),f=GENRE_FAMILIES[id]||[g.family];f.forEach(function(k){votes[k]=(votes[k]||0)+1/main.length/f.length;});});
+  });
+  var keys=Object.keys(votes).sort(function(a,b){return votes[b]-votes[a]||a.localeCompare(b);});
+  var lead=keys[0],share=lead?votes[lead]/known:0;
+  var runner=keys[1]?votes[keys[1]]/known:0;
+  if(keys[1]&&share-runner<0.15&&runner>=0.25){lead=keys.slice(0,2).sort().join('+');share+=runner;runner=keys[2]?votes[keys[2]]/known:0;}
+  return {known:known,total:works.length,lead:lead,share:share,
+    reliable:known>=2&&known/works.length>=2/3&&share>=0.4&&share-runner>=0.1,
+    albums:works.filter(function(a){return lead&&genreInfo(a).main.some(function(id){var families=GENRE_FAMILIES[id]||[GENRE_BY_ID.get(id).family];return families.some(function(f){return lead.split('+').indexOf(f)>=0;});});})};
+}
+function recordCoordinates(stages){
+  var points=[],dated=0,total=0;
+  stages.forEach(function(s){var works=uniqueWorks(s.albums);total+=works.length;works.forEach(function(a){var y=validYear(a);if(y!==null){dated++;points.push({year:y,weight:1/works.length,album:a});}});});
+  if(dated<3||dated/total<0.6)return null;
+  var sum=points.reduce(function(n,p){return n+p.weight;},0),best=null;
+  Array.from(new Set(points.map(function(p){return p.year;}))).sort(function(a,b){return a-b;}).forEach(function(y){
+    var selected=points.filter(function(p){return p.year>=y&&p.year<=y+4;});
+    var w=selected.reduce(function(n,p){return n+p.weight;},0);
+    if(!best||w>best.weight+1e-9)best={start:y,end:y+4,weight:w,albums:selected.map(function(p){return p.album;})};
+  });
+  var decades={};points.forEach(function(p){var d=Math.floor(p.year/10)*10;decades[d]=(decades[d]||0)+p.weight;});
+  var peaks=Object.keys(decades).sort(function(a,b){return decades[b]-decades[a]||a-b;});
+  if(best.weight/sum>=0.55)return {kind:'cluster',title:best.start+'—'+best.end,desc:'这些年发行的唱片，在你的选择里格外集中。',albums:uniqueWorks(best.albums).slice(0,3)};
+  if(peaks.length>=2&&Math.abs(peaks[0]-peaks[1])>=20&&decades[peaks[0]]/sum>=0.28&&decades[peaks[1]]/sum>=0.28){
+    var two=peaks.slice(0,2).sort(function(a,b){return a-b;});
+    return {kind:'dual',title:two[0]+'s · '+two[1]+'s',desc:'相隔多年的两组唱片，同时留在了你的收藏里。',albums:two.map(function(d){return points.find(function(p){return Math.floor(p.year/10)*10===Number(d);}).album;})};
+  }
+  return {kind:'spread',title:'跨年代收藏',desc:'从 '+Math.min.apply(null,points.map(function(p){return p.year;}))+' 到 '+Math.max.apply(null,points.map(function(p){return p.year;}))+'，这些唱片没有停留在同一个年代。',albums:[]};
+}
+function analyze(){
+  var artistMap=new Map(),workMap=new Map();
+  var stages=STATE.albums.map(function(list,i){
+    var albums=list.filter(function(a){return a.artist&&a.album;});
+    albums.forEach(function(a){
+      var k=searchNorm(a.artist);if(!artistMap.has(k))artistMap.set(k,{name:a.artist,stages:new Set(),albums:[]});
+      var ar=artistMap.get(k);ar.stages.add(i);ar.albums.push(a);
+      var wk=workKey(a);if(!workMap.has(wk))workMap.set(wk,{album:a,stages:new Set()});workMap.get(wk).stages.add(i);
+    });
+    return {index:i,name:STAGES[i],albums:albums,profile:stageProfile(albums)};
+  }).filter(function(s){return s.albums.length;});
+  var recurring=Array.from(artistMap.values()).filter(function(a){return a.stages.size>1;}).sort(function(a,b){return b.stages.size-a.stages.size||a.name.localeCompare(b.name);});
+  var repeated=Array.from(workMap.values()).filter(function(a){return a.stages.size>1;}).sort(function(a,b){return b.stages.size-a.stages.size;});
+  var insights=[];
+  for(var i=1;i<stages.length;i++){
+    var prev=stages[i-1],next=stages[i],p=prev.profile,n=next.profile;
+    if(p.reliable&&n.reliable){
+      var changed=p.lead!==n.lead,overlap=p.lead.split('+').some(function(k){return n.lead.split('+').indexOf(k)>=0;});
+      var added=n.lead.split('+').filter(function(k){return p.lead.split('+').indexOf(k)<0;});
+      insights.push({title:changed?(overlap?'声音的延伸':'声音的转向'):'一直保留的偏好',text:changed&&overlap?
+        '从'+prev.name+'到'+next.name+'，'+familyLabel(p.lead.split('+').filter(function(k){return n.lead.split('+').indexOf(k)>=0;}).join('+'))+'仍在你的选择里。'+(added.length?familyLabel(added.join('+'))+'相关作品也开始多起来。':'这组声音在后一个阶段更为集中。'):
+        changed?
+        prev.name+'选下的唱片偏向'+familyLabel(p.lead)+'；到了'+next.name+'，'+familyLabel(n.lead)+'成为更鲜明的一组声音。':
+        '从'+prev.name+'到'+next.name+'，'+familyLabel(p.lead)+'一直出现在你偏爱的唱片里。',
+        albums:[p.albums[0],n.albums[0]],stages:prev.name+' → '+next.name});
+    }
+  }
+  if(!insights.length){
+    var known=stages.find(function(s){return s.profile.reliable;});
+    if(known)insights.push({title:'这一阶段的声音',text:known.name+'选下的这些唱片，呈现出较鲜明的'+familyLabel(known.profile.lead)+'倾向。',albums:known.profile.albums.slice(0,2)});
+  }
+  var labels=[];
+  if(repeated.length)labels.push('总有几张舍不得换');
+  else if(recurring.some(function(a){return uniqueWorks(a.albums).length>=2;}))labels.push('顺着一个声音听下去');
+  var coordinate=recordCoordinates(stages);
+  if(coordinate&&coordinate.kind==='dual')labels.push('收藏横跨两个年代');
+  else if(coordinate&&coordinate.kind==='spread')labels.push('不按年代挑唱片');
+  return {stages:stages,recurring:recurring,repeated:repeated,insights:insights.slice(0,2),coordinate:coordinate,labels:labels.slice(0,2)};
+}
+function evidenceAlbums(albums){return '<div class="evidence-albums">'+uniqueWorks(albums).map(function(a){return '<span>'+esc(a.artist)+' · 《'+esc(a.album)+'》</span>';}).join('')+'</div>';}
+function coordinatesCard(r){var c=r.coordinate;if(!c)return '';return '<div class="age-card"><div class="age-label">唱片坐标</div><div class="coordinate-title">'+esc(c.title)+'</div><p class="age-comment">'+esc(c.desc)+'</p>'+evidenceAlbums(c.albums)+'</div>';}
+function insightsCard(r){if(!r.insights.length)return '';return '<div class="section-title">口味的线索</div>'+r.insights.map(function(x){return '<div class="score-card"><div class="score-name">'+esc(x.title)+'</div><p class="age-comment">'+esc(x.text)+'</p>'+evidenceAlbums(x.albums)+'</div>';}).join('');}
+function continuityCard(r){
+  if(r.repeated.length){var w=r.repeated[0];return '<div class="section-title">反复留下的唱片</div><div class="score-card"><p class="age-comment">《'+esc(w.album.album)+'》出现在'+Array.from(w.stages).map(function(i){return STAGES[i];}).join('、')+'。换了阶段，这张唱片仍在。</p>'+evidenceAlbums([w.album])+'</div>';}
+  if(!r.recurring.length)return '';
+  var a=r.recurring[0],works=uniqueWorks(a.albums);return '<div class="section-title">一直同行的声音</div><div class="score-card"><p class="age-comment">'+esc(a.name)+'出现在'+Array.from(a.stages).map(function(i){return STAGES[i];}).join('、')+'。'+(works.length>=2?'不同作品，连接着不同阶段的选择。':'')+'</p>'+evidenceAlbums(works.slice(0,3))+'</div>';
+}
+function renderResult(){
+  var r=analyze();
+  var walls=r.stages.map(function(s){return '<div class="wall-group"><div class="wall-stage">'+esc(s.name)+'</div><div class="wall">'+s.albums.map(function(a){var info=genreInfo(a);return '<div class="wall-cell"><div title="'+esc(a.artist+' · '+a.album)+'">'+(a.cover?'<img src="'+esc(a.cover)+'" alt="'+esc(a.album)+'" onerror="coverOnError(this)">':'<div class="ph">'+NOTE_SVG+'</div>')+'</div><div class="wall-caption">'+esc(a.album)+'</div><div class="wall-by">'+esc(a.artist)+'</div>'+(info.main.length?'<div class="wall-by">'+info.main.map(genreLabel).map(esc).join(' / ')+'</div>':'')+'</div>';}).join('')+'</div></div>';}).join('');
+  var title=STATE.nick==='无名氏'?'我的音乐履历':STATE.nick+'的音乐履历';
+  document.getElementById('resultWrap').innerHTML='<div id="capture"><div class="capture-bg"></div><div class="hero glass"><div class="hero-meta"><span>我的音乐履历</span><span class="mono">MUSIC HISTORY</span></div><div class="persona-name">'+esc(title)+'</div>'+
+    (r.labels.length?'<div class="result-tags">'+r.labels.map(function(t){return '<span class="hero-tag">'+esc(t)+'</span>';}).join('')+'</div>':'')+'</div>'+coordinatesCard(r)+insightsCard(r)+continuityCard(r)+'<div class="section-title">那些留下来的唱片</div>'+walls+'</div>'+
+    '<div class="result-actions"><button class="btn-save" id="saveBtn">保存图片</button><button class="btn-restart" id="editBtn">继续编辑</button></div><button class="manual-btn" id="exportGenresBtn">导出我的曲风补充</button><button class="manual-btn" id="restartBtn">重新填写</button>';
+  document.getElementById('saveBtn').onclick=saveImage;
+  document.getElementById('editBtn').onclick=function(){showView('entry');renderEntry();};
+  document.getElementById('exportGenresBtn').onclick=exportGenres;
+  document.getElementById('restartBtn').onclick=function(){if(confirm('清空本次专辑选择？已保存的曲风补充会保留。')){STATE={nick:'',stage:0,albums:freshAlbums()};document.getElementById('nickInput').value='';persistDraft();showView('home');updateBg();}};
+  persistDraft();updateBg();
+}
+function persistDraft(){try{localStorage.setItem('music-history-flat-draft-v1',JSON.stringify(STATE));}catch(e){toast('浏览器未能保存草稿，请导出资料备份');}}
+function exportGenres(){
+  var records=Object.keys(LOCAL_GENRES).map(function(k){return Object.assign({workKey:k},LOCAL_GENRES[k]);});
+  var url=URL.createObjectURL(new Blob([JSON.stringify({version:8,exportedAt:new Date().toISOString(),records:records},null,2)],{type:'application/json'}));
+  var a=document.createElement('a');a.href=url;a.download='我的曲风补充.json';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+}
+var GENRE_TARGET=null,GENRE_SELECTION={main:[],elements:[]},GENRE_GROUP='';
+function openGenres(a){
+  GENRE_TARGET=a;var info=genreInfo(a);GENRE_SELECTION={main:Array.from(new Set(info.main.concat(info.elements))),elements:[]};GENRE_GROUP='';
+  document.getElementById('genreAlbum').textContent=a.artist+' · '+a.album;
+  document.getElementById('genreQuery').value='';document.getElementById('genreCustom').value=info.custom||'';
+  document.getElementById('genreRole').value='main';
+  document.getElementById('genreSource').innerHTML=info.sources.length?'资料来源：'+info.sources.map(function(s){return '<a href="'+esc(s.url)+'" target="_blank" rel="noopener noreferrer">'+esc(s.title)+'</a>';}).join(' · '):(info.source?esc(info.source):'');
+  document.getElementById('genreSheet').classList.add('show');renderGenrePicker();
+}
+function renderGenrePicker(){
+  var q=searchNorm(document.getElementById('genreQuery').value),role=document.getElementById('genreRole').value;
+  document.getElementById('genreSelected').innerHTML=['main','elements'].map(function(type){return '<div class="genre-selected-line">'+(type==='main'?'主要风格':'其他元素')+'：'+(GENRE_SELECTION[type].length?GENRE_SELECTION[type].map(function(id){return '<button class="genre-chip chosen" data-remove="'+id+'" data-role="'+type+'">'+esc(genreLabel(id))+' ×</button>';}).join(''):'<span class="muted">未选择</span>')+'</div>';}).join('');
+  document.getElementById('genreGroups').innerHTML=GENRE_GROUPS.map(function(g){return '<option value="'+g[0]+'"'+(GENRE_GROUP===g[0]?' selected':'')+'>'+g[1]+'</option>';}).join('');
+  document.getElementById('genreGroups').insertAdjacentHTML('afterbegin','<option value=""'+(!GENRE_GROUP?' selected':'')+'>常用标签</option>');
+  var common=['pop','rock','indie-pop','electropop','synth-pop','disco','funk','jazz','folk','ambient','shoegaze','post-rock'];
+  var items=GENRES.filter(function(g){return q?searchNorm(g.label+' '+g.aliases+' '+g.id).indexOf(q)>=0:GENRE_GROUP?g.family===GENRE_GROUP:common.indexOf(g.id)>=0;});
+  document.getElementById('genreChoices').innerHTML=items.map(function(g){var chosen=GENRE_SELECTION.main.indexOf(g.id)>=0||GENRE_SELECTION.elements.indexOf(g.id)>=0;return '<button type="button" class="genre-chip'+(chosen?' chosen':'')+'" data-genre="'+g.id+'" aria-pressed="'+chosen+'">'+esc(g.label)+'</button>';}).join('')||'<p class="sheet-hint">没有找到，可以在下方补充名称。</p>';
+}
+document.getElementById('genreQuery').addEventListener('input',function(){renderGenrePicker();});
+document.getElementById('genreRole').addEventListener('change',function(){renderGenrePicker();});
+document.getElementById('genreGroups').addEventListener('change',function(e){GENRE_GROUP=e.target.value;renderGenrePicker();});
+document.getElementById('genreSelected').addEventListener('click',function(e){var b=e.target.closest('[data-remove]');if(!b)return;GENRE_SELECTION[b.dataset.role]=GENRE_SELECTION[b.dataset.role].filter(function(id){return id!==b.dataset.remove;});renderGenrePicker();});
+document.getElementById('genreChoices').addEventListener('click',function(e){
+  var b=e.target.closest('[data-genre]');if(!b)return;var id=b.dataset.genre,role=document.getElementById('genreRole').value;
+  if(GENRE_SELECTION[role].indexOf(id)>=0){GENRE_SELECTION[role]=GENRE_SELECTION[role].filter(function(x){return x!==id;});}
+  else{GENRE_SELECTION[role].push(id);var other=role==='main'?'elements':'main';GENRE_SELECTION[other]=GENRE_SELECTION[other].filter(function(x){return x!==id;});}
+  renderGenrePicker();
+});
+document.getElementById('genreCancel').onclick=function(){document.getElementById('genreSheet').classList.remove('show');};
+document.getElementById('genreSave').onclick=function(){
+  var record={artist:GENRE_TARGET.artist,album:GENRE_TARGET.album,main:GENRE_SELECTION.main.slice(),elements:GENRE_SELECTION.elements.slice(),custom:document.getElementById('genreCustom').value.trim().slice(0,100),updatedAt:new Date().toISOString()};
+  LOCAL_GENRES[workKey(GENRE_TARGET)]=record;
+  try{localStorage.setItem(GENRE_STORAGE_KEY,JSON.stringify(LOCAL_GENRES));}catch(e){toast('未能保存到浏览器，当前选择仍可使用，请导出备份');}
+  document.getElementById('genreSheet').classList.remove('show');renderEntry();
+};
+document.getElementById('genreReset').onclick=function(){delete LOCAL_GENRES[workKey(GENRE_TARGET)];try{localStorage.setItem(GENRE_STORAGE_KEY,JSON.stringify(LOCAL_GENRES));}catch(e){}openGenres(GENRE_TARGET);};
+var originalRenderEntry=renderEntry;
+renderEntry=function(){originalRenderEntry();var box=document.getElementById('albumForm'),slots=Array.from(box.querySelectorAll('.slot:not(.add-slot)'));
+  STATE.albums[STATE.stage].forEach(function(a,i){if(!a.artist||!a.album)return;var info=genreInfo(a),b=document.createElement('button');b.type='button';b.className='genre-edit';
+    b.textContent=info.main.length?info.main.map(genreLabel).join(' · ')+'  编辑曲风':'补充曲风';
+    b.onclick=function(){openGenres(a);};var slot=slots[i];slot.insertAdjacentElement('afterend',b);
+  });persistDraft();
+};
+try{var draft=JSON.parse(localStorage.getItem('music-history-flat-draft-v1')||'null');if(draft&&typeof draft.nick==='string'&&Array.isArray(draft.albums)&&draft.albums.length===4&&draft.albums.every(function(s){return Array.isArray(s)&&s.length<=10&&s.every(function(a){return a&&typeof a.artist==='string'&&typeof a.album==='string';});})){STATE=draft;STATE.stage=Math.max(0,Math.min(3,Number(draft.stage)||0));document.getElementById('nickInput').value=STATE.nick==='无名氏'?'':STATE.nick;}}catch(e){}
+
+</script>
+<script>
+/* v9: automatic metadata enrichment and a documented playful listening age. */
+// Alternative is a broad platform category; it must not be silently renamed Rock.
+GENRES.push({id:'alternative',label:'另类音乐',aliases:'Alternative',family:'alternative'});
+GENRE_BY_ID.set('alternative',GENRES[GENRES.length-1]);
+var familyLabelV8=familyLabel;
+familyLabel=function(id){return id==='alternative'?'另类音乐':familyLabelV8(id);};
+var AGE_ANCHOR=18.5; // midpoint of the 16–21-year formative-period assumption
+function weightedMedian(points){
+  var sorted=points.slice().sort(function(a,b){return a.year-b.year;}),sum=sorted.reduce(function(n,p){return n+p.weight;},0),part=0;
+  for(var i=0;i<sorted.length;i++){part+=sorted[i].weight;if(part>=sum/2)return sorted[i].year;}
+  return null;
+}
+function listeningAge(stages){
+  var points=[];
+  stages.forEach(function(s){var works=uniqueWorks(s.albums);works.forEach(function(a){var year=validYear(a);if(year!==null)points.push({year:year,weight:1/works.length,album:a});});});
+  if(!points.length)return null;
+  var median=weightedMedian(points),candidates=[];
+  Array.from(new Set(points.map(function(p){return p.year;}))).forEach(function(start){
+    var items=points.filter(function(p){return p.year>=start&&p.year<=start+4;});
+    candidates.push({start:start,end:start+4,items:items,weight:items.reduce(function(n,p){return n+p.weight;},0),year:weightedMedian(items)});
+  });
+  candidates.sort(function(a,b){return b.weight-a.weight||Math.abs(a.year-median)-Math.abs(b.year-median)||a.year-b.year;});
+  var best=candidates[0],sum=points.reduce(function(n,p){return n+p.weight;},0);
+  return {value:Math.round(CURRENT_YEAR-best.year+AGE_ANCHOR),year:best.year,start:best.start,end:best.end,
+    concentrated:best.weight/sum>=0.55,albums:uniqueWorks(best.items.map(function(p){return p.album;})).slice(0,3)};
+}
+var analyzeV8=analyze;
+analyze=function(){var r=analyzeV8();r.musicAge=listeningAge(r.stages);r.stages.forEach(function(s){s.musicAge=listeningAge([s]);});return r;};
+function musicAgeCards(r){
+  if(!r.stages.length)return '';
+  var overall=r.musicAge;
+  var result='<div class="age-card"><div class="age-label">音乐年龄 <span>趣味估算</span></div>'+
+    (overall?'<div class="age-year">'+overall.value+'<span class="unit">岁</span></div><p class="age-comment">'+(overall.concentrated?'所选唱片的年代重心：':'多个年代之间，本次取作参考的是：')+overall.year+' 年</p>':'<p class="age-comment">补充发行年份后，可以查看音乐年龄。</p>')+
+    '<details class="age-method"><summary>怎么算的？</summary><p>这是根据所选唱片年代计算的趣味年龄，不是实际年龄或审美评分。借用 Spotify 公开的 16～21 岁假设，本版取其中点 18.5 岁，再按唱片年代折算到 '+CURRENT_YEAR+' 年并四舍五入。</p><p>先找权重最集中的五年发行区间，再取区间内的加权中位年份。整体统计中各阶段权重相同，阶段内不同作品平分权重；并列时优先接近全部记录的中位年份。没有使用同龄听众数据，也不是 Spotify 原算法复刻。</p><p>各阶段年龄都折算到今天，表示该阶段所选作品的年代偏好，不代表你当时的年龄。只有一张有年份的唱片时，结果就基于这一张；缺失年份不参与计算，曲库再版日期也可能影响结果。</p></details></div>';
+  return result+'<div class="section-title">不同阶段的音乐年龄</div><div class="stage-ages">'+r.stages.map(function(s){return '<div class="score-card stage-age"><div class="stage-age-name">'+esc(s.name)+'</div><div class="stage-age-number">'+(s.musicAge?s.musicAge.value+'<small>岁</small>':'<small>年份待补充</small>')+'</div>'+(s.musicAge?'<div class="wall-by">唱片重心 · '+s.musicAge.year+'</div>':'')+'</div>';}).join('')+'</div>';
+}
+var renderResultV8=renderResult;
+renderResult=function(){
+  renderResultV8();var r=analyze(),capture=document.getElementById('capture');
+  if(capture){var hero=capture.querySelector('.hero');if(hero)hero.insertAdjacentHTML('afterend',musicAgeCards(r));}
+  // Keep operational status outside the exported card.
+  var status=document.getElementById('autoGenreStatus');
+  if(!status){status=document.createElement('p');status.id='autoGenreStatus';status.className='auto-genre-status';status.setAttribute('aria-live','polite');document.getElementById('resultWrap').appendChild(status);}
+  updateAutoStatus();queueCurrentAlbums();
+};
+var AUTO_GENRES={},AUTO_STATE=new Map(),AUTO_QUEUE=[],AUTO_RUNNING=0,AUTO_SERVICE=null;
+var AUTO_STORAGE_KEY=typeof location!=='undefined'&&location.pathname.indexOf('/preview-v')>=0?'music-id-demo-auto-v9-lastfm':'music-id-auto-v9-lastfm';
+try{AUTO_GENRES=JSON.parse(localStorage.getItem(AUTO_STORAGE_KEY)||'{}');if(!AUTO_GENRES||typeof AUTO_GENRES!=='object'||Array.isArray(AUTO_GENRES))AUTO_GENRES={};}catch(e){}
+function tagNorm(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/[\s\u2010-\u2015_\-]/g,'');}
+function tagId(name){
+  var k=tagNorm(name),special={'pop流行':'pop','rock摇滚':'rock','r&bsoul':'rnb','hiphoprap':'hiphop','rap':'hiphop','dnb':'drum-bass','electronica':'electronic','dance':'electronic'};
+  if(special[k])return special[k];
+  var g=GENRES.find(function(g){return [g.id,g.label,g.aliases].concat(g.aliases.match(/[\u3400-\u9fff]+/g)||[]).some(function(v){return tagNorm(v)===k;});});
+  return g?g.id:null;
+}
+function automaticEvidence(data){
+  var votes={},sources=[];
+  (data.genres||[]).forEach(function(x){if(x.scope!=='album'||(x.sourceId==='lastfm'&&!(Number(x.count)>=10)))return;var id=tagId(x.name);if(!id)return;votes[id]=(votes[id]||0)+1;if(x.url&&/^https:\/\//.test(x.url))sources.push({title:x.source||'曲库资料',url:x.url});});
+  // Album-only integration: ignore legacy track evidence, never infer from artists.
+  var ids=Object.keys(votes).sort(function(a,b){return votes[b]-votes[a];});
+  // Prefer a specific style over its broad parent when both sources describe it.
+  var roots={pop:'pop',rock:'rock',electronic:'electronic',jazz:'jazz',folk:'folk',country:'folk',metal:'metal',hiphop:'hiphop'};
+  ids=ids.filter(function(id){return !roots[id]||!ids.some(function(other){return other!==id&&!roots[other]&&(GENRE_FAMILIES[other]||[GENRE_BY_ID.get(other).family]).indexOf(roots[id])>=0;});});
+  var uniqueSources=[];sources.forEach(function(s){if(!uniqueSources.some(function(x){return x.url===s.url;}))uniqueSources.push(s);});
+  return {main:ids.slice(0,3),elements:[],custom:'',source:uniqueSources.length?uniqueSources.map(function(s){return s.title;}).join('、'):'曲库自动资料',sources:uniqueSources};
+}
+var genreInfoV8=genreInfo;
+genreInfo=function(a){
+  var base=genreInfoV8(a);
+  if(LOCAL_GENRES[workKey(a)]||a.genreEvidence||base.source==='访谈整理')return base;
+  var auto=AUTO_GENRES[workKey(a)];
+  return auto&&Date.now()-auto.time<7*86400000&&auto.evidence&&auto.evidence.main.length?auto.evidence:base;
+};
+function autoService(){
+  if(!AUTO_SERVICE)AUTO_SERVICE=Promise.resolve().then(function(){return fetchJson(PROXY_BASE+'/health',5000);}).then(function(r){return !!(r&&r.ok&&r.data&&r.data.genreMetadata);}).catch(function(){AUTO_SERVICE=null;return false;});
+  return AUTO_SERVICE;
+}
+function queueCurrentAlbums(){
+  uniqueWorks(getAll()).forEach(function(a){
+    var key=workKey(a),state=AUTO_STATE.get(key),cached=AUTO_GENRES[key],base=genreInfoV8(a);
+    if(LOCAL_GENRES[key]||a.genreEvidence||base.source==='访谈整理'||state)return;
+    if(cached&&Date.now()-cached.time<7*86400000)return;
+    AUTO_STATE.set(key,'queued');AUTO_QUEUE.push({key:key,artist:a.artist,album:a.album,source:a.source||'',albumId:a.albumId||''});
+  });
+  runAutoQueue();updateAutoStatus();
+}
+function runAutoQueue(){
+  while(AUTO_RUNNING<2&&AUTO_QUEUE.length){
+    (function(job){AUTO_RUNNING++;AUTO_STATE.set(job.key,'loading');
+      autoService().then(function(available){
+        if(!available){AUTO_STATE.set(job.key,'unavailable');return;}
+        var query='artist='+encodeURIComponent(job.artist)+'&album='+encodeURIComponent(job.album)+'&source='+encodeURIComponent(job.source)+'&id='+encodeURIComponent(job.albumId);
+        return fetchJson(PROXY_BASE+'/metadata/genres?'+query,40000).then(function(r){
+          if(!r||!r.ok||!r.data||seedKey(r.data)!==seedKey(job))throw new Error('unmatched metadata');
+          var evidence=automaticEvidence(r.data);
+          AUTO_STATE.set(job.key,evidence.main.length?'ready':'empty');
+          if(evidence.main.length||!(r.data.failedSources||[]).length){AUTO_GENRES[job.key]={time:Date.now(),evidence:evidence};try{localStorage.setItem(AUTO_STORAGE_KEY,JSON.stringify(AUTO_GENRES));}catch(e){}}
+        });
+      }).catch(function(){AUTO_STATE.set(job.key,'failed');}).finally(function(){
+        AUTO_RUNNING--;runAutoQueue();refreshAutomaticContent();
+      });
+    })(AUTO_QUEUE.shift());
+  }
+}
+function updateAutoStatus(){
+  var el=document.getElementById('autoGenreStatus');if(!el)return;
+  var active=Array.from(AUTO_STATE.values()).some(function(s){return s==='queued'||s==='loading';});
+  var unavailable=Array.from(AUTO_STATE.values()).some(function(s){return s==='failed'||s==='unavailable';});
+  el.textContent=active?'正在自动补全曲风资料，结果会随资料更新。':unavailable?'部分曲风资料暂时无法获取，可以稍后重试，也可以自行补充。':'';
+  if(!active&&unavailable){var retry=document.createElement('button');retry.type='button';retry.className='genre-edit';retry.textContent='重新获取曲风';retry.onclick=function(){AUTO_SERVICE=null;AUTO_STATE.forEach(function(state,key){if(state==='failed'||state==='unavailable'){AUTO_STATE.delete(key);delete AUTO_GENRES[key];}});queueCurrentAlbums();};el.appendChild(retry);}
+}
+function refreshAutomaticContent(){
+  var result=document.getElementById('result');
+  if(result&&result.classList.contains('active')){var y=window.scrollY||0;renderResult();window.scrollTo(0,y);}
+  else if(document.getElementById('entry').classList.contains('active'))renderEntry();
+  updateAutoStatus();
+}
+var renderEntryV8=renderEntry;
+renderEntry=function(){renderEntryV8();queueCurrentAlbums();};
+var genreSaveV8=document.getElementById('genreSave').onclick;
+document.getElementById('genreSave').onclick=function(){genreSaveV8();updateAutoStatus();};
+
+</script>
+<script>
+/* Presentation only. Search, matching, metadata, genre evidence and draft storage are inherited unchanged. */
+var SOCIAL_COLORS=['#9bbfce','#a6c3b1','#b8afd0','#d7bfa1'];
+function socialRecords(){return STATE.albums.map(function(s){return s.filter(function(a){return a.artist&&a.album;});});}
+function socialStageIndices(){return socialRecords().map(function(s,i){return s.length?i:-1;}).filter(function(i){return i>=0;});}
+function socialTitle(){return STATE.nick&&STATE.nick!=='无名氏'?STATE.nick+'的音乐履历':'我的音乐履历';}
+function socialGenres(si){var tally={};socialRecords()[si].forEach(function(a){genreInfo(a).main.forEach(function(g){tally[g]=(tally[g]||0)+1;});});return Object.keys(tally).sort(function(a,b){return tally[b]-tally[a];}).slice(0,3).map(genreLabel);}
+function socialChanges(){return analyze().insights.filter(function(x){return !!x.stages;});}
+function socialGenreMarkup(){var changes=socialChanges();return '<div class="social-genre-header"><h2 class="social-module-title">偏好曲风</h2><p>仅依据有曲风资料的专辑</p></div><div class="social-genre-grid" style="--stage-count:'+Math.max(1,socialStageIndices().length)+'">'+socialStageIndices().map(function(i){var s=STAGES[i],tags=socialGenres(i);return '<section class="social-genre-stage" style="--stage-color:'+SOCIAL_COLORS[i]+'"><h3>'+esc(s)+'</h3>'+(tags.length?'<div class="social-tags">'+tags.map(function(t){return '<span>'+esc(t)+'</span>';}).join('')+'</div>':'<p>'+ (socialRecords()[i].length?'曲风资料待补充':'尚未填写')+'</p>')+'</section>';}).join('')+'</div>';}
+function socialRefresh(){var el=document.getElementById('socialGenres');if(el)el.innerHTML=socialGenreMarkup();updateAutoStatus();}
+function renderResult(){var records=socialRecords(),el=document.getElementById('resultWrap');el.className='social-shell';el.innerHTML='<header class="social-top"><span class="social-brand">我的音乐履历</span><nav class="social-actions" aria-label="名片操作"><button class="social-btn" id="editBtn">返回填写</button><button class="social-btn primary" id="saveBtn">导出图片</button></nav></header><div class="social-heading"><h1>'+esc(socialTitle())+'</h1></div><section aria-labelledby="socialAlbumHeading"><h2 class="social-module-title" id="socialAlbumHeading">阶段专辑</h2><div class="social-stages" data-stage-count="'+socialStageIndices().length+'" style="--stage-count:'+Math.max(1,socialStageIndices().length)+'">'+socialStageIndices().map(function(si){var s=STAGES[si];return '<section class="social-stage" style="--stage-color:'+SOCIAL_COLORS[si]+'"><h3><small>0'+(si+1)+'</small>'+esc(s)+'</h3>'+(records[si].length?'<div class="social-albums">'+records[si].map(function(a,ai){return '<button class="social-album" data-social-stage="'+si+'" data-social-album="'+ai+'" aria-label="'+esc(a.artist+' · '+a.album+'，查看或补充曲风')+'"><div class="social-art">'+(a.cover?'<img loading="lazy" decoding="async" src="'+esc(a.cover)+'" alt="'+esc(a.album)+' 封面">':'<span>暂无封面</span>')+'</div><strong>'+esc(a.album)+'</strong><span class="artist">'+esc(a.artist)+'</span></button>';}).join('')+'</div>':'<p class="social-empty">尚未填写</p>')+'</section>';}).join('')+'</div></section><section class="social-genres" id="socialGenres" aria-label="偏好曲风">'+socialGenreMarkup()+'</section><p class="auto-genre-status" id="autoGenreStatus" aria-live="polite"></p><footer class="social-foot"><span>草稿保存在当前浏览器<br>点击专辑可查看或补充曲风</span><button id="socialPrivacy">隐私与数据说明</button></footer>';
+  el.querySelectorAll('[data-social-album]').forEach(function(b){b.onclick=function(){openGenres(records[Number(b.dataset.socialStage)][Number(b.dataset.socialAlbum)]);};});el.querySelectorAll('.social-art img').forEach(function(img){img.onerror=function(){var t=document.createElement('span');t.textContent='封面暂不可用';img.replaceWith(t);};});document.getElementById('editBtn').onclick=function(){showView('entry');renderEntry();};document.getElementById('saveBtn').onclick=saveImage;document.getElementById('socialPrivacy').onclick=socialPrivacy;persistDraft();updateAutoStatus();queueCurrentAlbums();}
+refreshAutomaticContent=function(){if(document.getElementById('result').classList.contains('active'))socialRefresh();else if(document.getElementById('entry').classList.contains('active'))renderEntry();updateAutoStatus();};
+['genreSave','genreReset'].forEach(function(id){var btn=document.getElementById(id),prev=btn.onclick;btn.onclick=function(){prev();if(document.getElementById('result').classList.contains('active'))socialRefresh();};});
+function socialDialog(title,body){var previous=document.activeElement,overlay=document.createElement('div');overlay.className='social-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label',title);overlay.innerHTML='<div class="social-dialog"><h2>'+esc(title)+'</h2>'+body+'</div>';function close(){overlay.remove();if(previous&&previous.focus)previous.focus();}overlay.addEventListener('keydown',function(e){if(e.key==='Escape')close();if(e.key==='Tab'){var focus=Array.from(overlay.querySelectorAll('button:not(:disabled),a[href]'));if(!focus.length)return;var first=focus[0],last=focus[focus.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});overlay.querySelector('[data-close]').onclick=close;document.body.appendChild(overlay);overlay.querySelector('[data-close]').focus();return overlay;}
+function socialPrivacy(){socialDialog('隐私与数据说明','<p>本工具无需注册或登录。昵称、所选专辑和手动补充的曲风保存在当前浏览器；更换设备或清除浏览器数据后可能无法恢复。</p><p>搜索关键词和用于查询曲风的专辑名、音乐人信息，会发送给我们的查询服务及相应音乐资料来源。封面加载会连接图片来源服务器；网络服务可能记录必要的访问日志。</p><p>手动上传的封面在浏览器中处理并保存在本地草稿中。本版没有公开收藏列表或公共曲风资料库。</p><p>导出图片在当前设备生成。只有你主动保存或分享后，图片才会进入相册、文件或选定的分享应用。分享前请检查图片内容。</p><div class="social-actions"><button class="social-btn" data-close>知道了</button></div>');}
+function socialWrap(c,text,x,y,width,lineHeight,maxLines){var lines=[],line='';Array.from(String(text||'')).forEach(function(ch){if(c.measureText(line+ch).width>width&&line){lines.push(line);line=ch;}else line+=ch;});if(line)lines.push(line);if(maxLines&&lines.length>maxLines){lines=lines.slice(0,maxLines);while(c.measureText(lines[lines.length-1]+'…').width>width)lines[lines.length-1]=lines[lines.length-1].slice(0,-1);lines[lines.length-1]+='…';}lines.forEach(function(l,i){c.fillText(l,x,y+i*lineHeight);});return lines.length*lineHeight;}
+function socialLoadImage(url){return new Promise(function(resolve){if(!url){resolve(null);return;}var img=new Image(),finished=false,timer=setTimeout(function(){done(null);},7000);function done(v){if(finished)return;finished=true;clearTimeout(timer);resolve(v);}img.crossOrigin='anonymous';img.onload=function(){done(img);};img.onerror=function(){done(null);};img.src=url;});}
+async function socialPoster(){var records=socialRecords(),changes=socialChanges(),indices=socialStageIndices(),count=Math.max(1,indices.length),W=count===1?1000:1600,M=72,gap=32,cw=(W-2*M-(count-1)*gap)/count,albumCols=count<=2?4:2,cover=(cw-(albumCols-1)*16)/albumCols,row=cover+105,rows=Math.max(1,...records.map(function(s){return Math.ceil(s.length/albumCols);})),genreY=270+rows*row,H=Math.ceil(genreY+350),cv=document.createElement('canvas');cv.width=W;cv.height=H;var c=cv.getContext('2d'),missing=0;c.fillStyle='#f7f8f5';c.fillRect(0,0,W,H);c.fillStyle='#397f78';c.font='20px sans-serif';c.fillText('我的音乐履历',M,64);c.fillStyle='#28332f';c.font='bold 44px sans-serif';socialWrap(c,socialTitle(),M,126,W-2*M,54,2);var loaded=await Promise.all(records.map(function(s){return Promise.all(s.map(function(a){return socialLoadImage(a.cover);}));}));
+  indices.forEach(function(si,column){var s=records[si],x=M+column*(cw+gap),y=205;c.fillStyle=SOCIAL_COLORS[si];c.fillRect(x,y,cw,5);c.fillStyle='#28332f';c.font='bold 30px sans-serif';c.fillText(STAGES[si],x,y+46);if(!s.length){c.fillStyle='#69766f';c.font='20px sans-serif';c.fillText('尚未填写',x,y+110);}s.forEach(function(a,i){var ax=x+i%albumCols*(cover+16),ay=270+Math.floor(i/albumCols)*row,img=loaded[si][i];c.fillStyle='#e7eeea';c.fillRect(ax,ay,cover,cover);if(img){var size=Math.min(img.width,img.height);c.drawImage(img,(img.width-size)/2,(img.height-size)/2,size,size,ax,ay,cover,cover);}else{if(a.cover)missing++;c.fillStyle='#69766f';c.font='17px sans-serif';c.fillText(a.cover?'封面暂不可用':'暂无封面',ax+10,ay+cover/2);}c.fillStyle='#28332f';c.font='600 19px sans-serif';socialWrap(c,a.album,ax,ay+cover+28,cover,25,2);c.fillStyle='#596960';c.font='16px sans-serif';socialWrap(c,a.artist,ax,ay+cover+80,cover,20,1);});});
+  c.fillStyle='#fff';c.fillRect(M-20,genreY+15,W-2*M+40,H-genreY-85);c.fillStyle='#28332f';c.font='bold 28px sans-serif';c.fillText('偏好曲风',M,genreY+65);c.fillStyle='#69766f';c.font='18px sans-serif';c.fillText('仅依据有曲风资料的专辑',M,genreY+100);indices.forEach(function(i,column){var s=STAGES[i],x=M+column*(cw+gap);c.fillStyle=SOCIAL_COLORS[i];c.fillRect(x,genreY+130,cw,3);c.fillStyle='#28332f';c.font='bold 23px sans-serif';c.fillText(s,x,genreY+171);c.fillStyle='#397f78';c.font='20px sans-serif';socialWrap(c,socialGenres(i).join(' / ')||(records[i].length?'曲风资料待补充':'尚未填写'),x,genreY+211,cw,28,3);});c.fillStyle='#69766f';c.font='17px sans-serif';c.fillText('我的音乐履历 · '+(STATE.nick||'我的音乐履历'),M,H-35);return {canvas:cv,missing:missing};}
+async function saveImage(){var btn=document.getElementById('saveBtn');if(btn){btn.disabled=true;btn.textContent='正在生成…';}try{var result=await socialPoster(),blob=await new Promise(function(resolve){result.canvas.toBlob(resolve,'image/png');});if(!blob)throw new Error('empty image');var url=URL.createObjectURL(blob),name='音乐履历-'+(STATE.nick||'我的收藏').replace(/[\\/:*?"<>|]/g,'_')+'.png',file=typeof File!=='undefined'?new File([blob],name,{type:'image/png'}):null;var box=socialDialog('保存音乐履历','<p class="export-hint">手机可长按图片保存；也可使用下方按钮。'+(result.missing?'部分封面未能加载，已保留对应作品名称。':'全部已选作品已排入一张图。')+'</p><div class="social-image-wrap"><img alt="包含全部阶段专辑及偏好曲风的音乐履历"></div><div class="social-actions"><a class="social-btn primary" download="'+esc(name)+'">下载图片</a><button class="social-btn" id="socialNativeShare" hidden>分享图片</button><button class="social-btn" data-close>关闭</button></div>');box.querySelector('img').src=result.canvas.toDataURL('image/png');box.querySelector('a').href=url;var share=box.querySelector('#socialNativeShare');if(file&&navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){share.hidden=false;share.onclick=async function(){try{await navigator.share({files:[file],title:socialTitle()});}catch(e){if(e.name!=='AbortError')toast('请长按图片保存，或使用下载图片');}};}var close=box.querySelector('[data-close]'),previous=close.onclick;close.onclick=function(){previous();URL.revokeObjectURL(url);};}catch(e){toast('图片生成失败，请重试。');}finally{if(btn){btn.disabled=false;btn.textContent='导出图片';}}}
+if(typeof window.addEventListener==='function')window.addEventListener('keydown',function(e){if(e.key==='Escape'&&!document.querySelector('.social-overlay')){document.querySelectorAll('.sheet.show').forEach(function(s){s.classList.remove('show');});}});
+
+/* Search one catalog at a time. Keep exact matching and edition-sensitive deduplication. */
+var SEARCH_CACHE=new Map(),SEARCH_CACHE_TTL=5*60*1000,SEARCH_CACHE_CAP=60;
+function searchAlbums(q,mode){
+  mode=mode||'artist';
+  var cacheKey=mode+'|'+searchNorm(q),cached=SEARCH_CACHE.get(cacheKey);
+  if(cached&&Date.now()-cached.at<SEARCH_CACHE_TTL)return cached.promise;
+  if(cached)SEARCH_CACHE.delete(cacheKey);
+  var u=encodeURIComponent(q),cnOk=false;
+  var sources=[
+    {id:'netease',domestic:true,normalize:normCNItem},
+    {id:'qq',domestic:true,normalize:normCNItem},
+    {id:'itunes',domestic:false,normalize:function(x){
+      return {artist:x.artist||'',album:x.album||'',cover:x.cover||'',
+        albumId:x.albumId||'',releaseDate:x.releaseDate||'',artists:x.artists||[],
+        year:x.year?parseInt(x.year,10):null,source:'itunes',genreName:x.genreName||'',genre:'',lang:''};
+    }}
+  ];
+  function collect(raw,source){
+    var seen=new Set(),out=[];
+    (Array.isArray(raw)?raw:[]).forEach(function(x){
+      var item=source.normalize(x);
+      if(!item.artist||!item.album||!matchesSearch(item,q,mode))return;
+      var key=searchNorm(item.artist)+'|'+searchNorm(item.album);
+      if(seen.has(key))return;
+      seen.add(key);out.push(item);
+    });
+    out.sort(function(a,b){return String(b.releaseDate||b.year||'').localeCompare(String(a.releaseDate||a.year||''))||a.album.localeCompare(b.album);});
+    return out.slice(0,SEARCH_CAP);
+  }
+  function trySource(index){
+    if(index>=sources.length)return Promise.resolve({list:[],cnOk:cnOk,source:null});
+    var source=sources[index];
+    return fetchJsonRetry(PROXY_BASE+'/search/'+source.id+'?kw='+u+'&mode='+mode+(source.id==='netease'&&mode==='artist'?'&paged=1':''),10000).then(function(j){
+      if(!j||!j.ok||!Array.isArray(j.data))throw new Error('catalog unavailable');
+      if(source.domestic)cnOk=true;
+      var list=collect(j.data,source);
+      return list.length?{list:list,cnOk:cnOk,source:source.id,page:j.page||null}:trySource(index+1);
+    }).catch(function(){return trySource(index+1);});
+  }
+  var request=trySource(0).then(function(result){
+    if(!result.list.length)SEARCH_CACHE.delete(cacheKey);
+    return result;
+  }).catch(function(error){SEARCH_CACHE.delete(cacheKey);throw error;});
+  SEARCH_CACHE.set(cacheKey,{at:Date.now(),promise:request});
+  if(SEARCH_CACHE.size>SEARCH_CACHE_CAP)SEARCH_CACHE.delete(SEARCH_CACHE.keys().next().value);
+  return request;
+}
+
+/* Entry requirements and genre-picker presentation. Existing records stay intact. */
+function padStageSlots(){STATE.albums.forEach(function(stage){while(stage.length<INIT_SLOTS)stage.push(emptyAlbum());});}
+padStageSlots();
+var renderEntryBeforeV14=renderEntry;
+renderEntry=function(){
+  padStageSlots();renderEntryBeforeV14();
+  var box=document.getElementById('albumForm');
+  Array.from(box.querySelectorAll('.slot:not(.add-slot)')).forEach(function(slot,index){
+    if(slot.parentNode!==box)return;
+    var edit=slot.nextElementSibling,card=document.createElement('div');card.className='album-entry-card';
+    box.insertBefore(card,slot);card.appendChild(slot);
+    if(edit&&edit.classList.contains('genre-edit')){
+      var info=genreInfo(STATE.albums[STATE.stage][index]),row=document.createElement('div'),labels=document.createElement('span');
+      row.className='album-genre-row';labels.className='album-genre-labels';
+      labels.textContent=info.main.length?info.main.map(genreLabel).join(' · '):'曲风待补充';
+      edit.textContent='完善曲风分类';edit.classList.add('album-genre-action');
+      row.appendChild(labels);row.appendChild(edit);card.appendChild(row);
+    }
+  });
+};
+// Additional slots are now an explicit action, so completing four leaves a full grid.
+afterPick=function(){};
+document.getElementById('nextBtn').onclick=function(){
+  var current=STATE.stage;
+  if(current<STAGES.length-1){STATE.stage++;renderEntry();return;}
+  if(filledCount()<MIN_TOTAL){toast('共选择至少 '+MIN_TOTAL+' 张专辑即可生成，阶段可以跳过');return;}
+  renderResult();showView('result');
+};
+var tagIdBeforeV14=tagId;
+tagId=function(name){return ['jpop','japanesepop','日本流行','日系流行'].indexOf(tagNorm(name))>=0?'j-pop':tagIdBeforeV14(name);};
+renderGenrePicker=function(){
+  var input=document.getElementById('genreQuery'),query=input.value.trim(),q=tagNorm(query),role=document.getElementById('genreRole').value||'main';
+  var ids=GENRE_SELECTION.main;
+  document.getElementById('genreSelected').innerHTML='<div class="genre-selected-line"><strong>已选曲风 <small>'+ids.length+'</small></strong><div>'+(ids.length?ids.map(function(id){return '<button type="button" class="genre-chip chosen" data-remove="'+id+'" data-role="main" aria-label="移除'+esc(genreLabel(id))+'">'+esc(genreLabel(id))+' <span aria-hidden="true">×</span></button>';}).join(''):'<span class="genre-unselected">尚未选择</span>')+'</div></div>';
+  document.getElementById('genreGroups').innerHTML='<option value=""'+(!GENRE_GROUP?' selected':'')+'>常用曲风</option>'+GENRE_GROUPS.map(function(g){return '<option value="'+g[0]+'"'+(GENRE_GROUP===g[0]?' selected':'')+'>'+esc(g[1])+'</option>';}).join('');
+  var common=['j-pop','city-pop','shibuya-kei','pop','rock','indie-pop','electropop','synth-pop','disco','funk','jazz','folk','ambient','shoegaze','post-rock'];
+  var items=GENRES.filter(function(g){return q?tagNorm(g.label+' '+g.aliases+' '+g.id).indexOf(q)>=0:GENRE_GROUP?g.family===GENRE_GROUP:common.indexOf(g.id)>=0;});
+  if(q)items.sort(function(a,b){return Number(tagNorm(b.label)===q||tagNorm(b.id)===q)-Number(tagNorm(a.label)===q||tagNorm(a.id)===q);});
+  var family=GENRE_GROUPS.find(function(g){return g[0]===GENRE_GROUP;});
+  document.getElementById('genreMatchStatus').textContent=q?'“'+query+'” · '+items.length+'个搜索结果':(family?family[1]:'常用曲风')+' · 点击选择曲风';
+  document.getElementById('genreClearQuery').hidden=!query;
+  document.getElementById('genreChoices').innerHTML=items.map(function(g){
+    var selected=GENRE_SELECTION[role].indexOf(g.id)>=0;
+    return '<button type="button" class="genre-chip'+(selected?' chosen':'')+'" data-genre="'+g.id+'" aria-pressed="'+selected+'">'+(selected?'<span aria-hidden="true">✓ </span>':'')+esc(g.label)+'</button>';
+  }).join('')||'<p class="genre-no-results">没有找到匹配的曲风。可以换一个名称，或在下方补充。</p>';
+};
+document.getElementById('genreClearQuery').onclick=function(){document.getElementById('genreQuery').value='';renderGenrePicker();document.getElementById('genreQuery').focus();};
+document.getElementById('genreGroups').addEventListener('change',function(){document.getElementById('genreQuery').value='';renderGenrePicker();});
+
+/* Artist directories load in pages; later pages never mix fallback catalogs. */
+function mergeCatalogPages(previous,incoming,q){
+  var seen=new Set(),out=[];
+  previous.concat(incoming).forEach(function(item){
+    if(!matchesSearch(item,q,'artist'))return;
+    var key=searchNorm(item.artist)+'|'+searchNorm(item.album);
+    if(seen.has(key))return;seen.add(key);out.push(item);
+  });
+  return out.sort(function(a,b){return String(b.releaseDate||b.year||'').localeCompare(String(a.releaseDate||a.year||''))||a.album.localeCompare(b.album);});
+}
+var CATALOG_PAGE_SIZE=50;
+function catalogView(res){
+  var totalPages=Math.max(1,Math.ceil(res.list.length/CATALOG_PAGE_SIZE));
+  res.displayPage=Math.max(1,Math.min(totalPages,res.displayPage||1));
+  return {page:res.displayPage,totalPages:totalPages,items:res.list.slice((res.displayPage-1)*CATALOG_PAGE_SIZE,res.displayPage*CATALOG_PAGE_SIZE)};
+}
+function clearCatalogPager(){var el=document.getElementById('searchPager');if(el)el.hidden=true;}
+function catalogSearchIsActive(q,mode){return searchNorm(searchInput.value.trim())===searchNorm(q)&&searchMode===mode&&sheet.classList.contains('show');}
+function renderSearchResponse(res,q,mode,requestId,resetPage){
+  if(requestId!==searchSequence)return;
+  if(resetPage)res.displayPage=1;
+  var list=res.list;
+  if(!list.length){searchHint.textContent='未找到精确匹配，请核对完整名称或手动添加';searchResults.innerHTML='';clearCatalogPager();return;}
+  var view=catalogView(res);
+  searchHint.textContent=list.length+'个搜索结果'+(res.cnOk?'':'（国内曲库暂时没连上）');
+  searchResults.innerHTML=view.items.map(function(it){
+    return '<button type="button" class="res-row" data-pick="'+encodeURIComponent(JSON.stringify(it))+'">'+
+      '<img src="'+esc(it.cover)+'" onerror="coverOnError(this)">'+
+      '<span class="res-meta"><div class="res-album">'+esc(it.album)+'</div><div class="res-sub">'+esc(it.artist)+(it.year?' · '+it.year:'')+'</div></span></button>';
+  }).join('');
+  var pager=document.getElementById('searchPager');
+  if(!pager){pager=document.createElement('footer');pager.id='searchPager';pager.className='catalog-pager';sheet.appendChild(pager);}
+  pager.hidden=false;
+  var pending=res.source==='netease'&&mode==='artist'&&res.page&&res.page.hasMore;
+  pager.innerHTML='<nav class="catalog-page-nav" aria-label="搜索结果翻页">'+
+    '<button type="button" id="catalogPrev" aria-label="上一页" title="上一页"'+(view.page===1?' disabled':'')+'><span class="catalog-triangle previous" aria-hidden="true"></span></button>'+
+    '<span class="catalog-page-count" role="status" aria-live="polite">'+view.page+'/'+view.totalPages+'</span>'+
+    '<button type="button" id="catalogNext" aria-label="下一页" title="下一页"'+(view.page===view.totalPages?' disabled':'')+'><span class="catalog-triangle next" aria-hidden="true"></span></button></nav>'+
+    (pending?'<div class="catalog-page-status" role="status">'+(res.moreError?'剩余目录读取失败，页数尚未完整。<button type="button" id="catalogRetry">重试</button>':'正在读取其余作品，页数更新中…')+'</div>':'');
+  function turn(delta){res.displayPage+=delta;renderSearchResponse(res,q,mode,searchSequence);var body=sheet.querySelector('.sheet-body');if(body)body.scrollTop=0;}
+  document.getElementById('catalogPrev').onclick=function(){turn(-1);};
+  document.getElementById('catalogNext').onclick=function(){turn(1);};
+  if(res.moreError&&pending)document.getElementById('catalogRetry').onclick=function(){res.moreError=false;readRemainingArtistPages(res,q,mode);};
+  if(pending&&!res.scanRunning&&!res.moreError)readRemainingArtistPages(res,q,mode);
+}
+function readRemainingArtistPages(res,q,mode){
+  if(res.scanRunning)return;
+  res.scanRunning=true;
+  function next(){
+    if(!catalogSearchIsActive(q,mode)||!res.page||!res.page.hasMore||res.moreError)return Promise.resolve();
+    return loadMoreArtistAlbums(res,q,mode).then(next);
+  }
+  return next().then(function(){res.scanRunning=false;if(catalogSearchIsActive(q,mode))renderSearchResponse(res,q,mode,searchSequence);});
+}
+function loadMoreArtistAlbums(res,q,mode){
+  if(res.moreLoading||!res.page||!res.page.hasMore)return Promise.resolve();
+  var offset=Number(res.page.nextOffset);
+  if(!Number.isInteger(offset)||offset<1){res.moreError=true;return Promise.resolve();}
+  res.moreLoading=true;res.moreError=false;
+  function refresh(){if(catalogSearchIsActive(q,mode))renderSearchResponse(res,q,mode,searchSequence);}
+  refresh();
+  return fetchJsonRetry(PROXY_BASE+'/search/netease?kw='+encodeURIComponent(q)+'&mode=artist&paged=1&offset='+offset,10000).then(function(j){
+    if(!j||!j.ok||!Array.isArray(j.data)||!j.page)throw new Error('page unavailable');
+    if(j.page.hasMore&&!(Number(j.page.nextOffset)>offset))throw new Error('invalid next page');
+    res.list=mergeCatalogPages(res.list,j.data.map(normCNItem),q);res.page=j.page;
+  }).catch(function(){res.moreError=true;}).then(function(){res.moreLoading=false;refresh();});
+}
+
+</script><script>
+/* Shared title fitting for the result page and Canvas export. */
+function albumTitleLayout(text,width,baseSize,measure){
+  text=String(text||'');var min=baseSize*.85,size=baseSize;
+  if(measure(text,size)>width){
+    if(measure(text,min)<=width){var low=min,high=baseSize;for(var i=0;i<16;i++){var mid=(low+high)/2;if(measure(text,mid)<=width)low=mid;else high=mid;}size=low;}
+    else size=min;
+  }
+  var tokens=text.match(/[\x21-\x7E\u2019]+|\s+|[^\x21-\x7E\u2019\s]/gu)||[],lines=[],line='';
+  tokens.forEach(function(token){
+    if(!line&&/^\s+$/.test(token))return;
+    if(line&&measure(line+token,size)>width){lines.push(line.trimEnd());line=token.trimStart();}else line+=token;
+  });if(line.trim()||!lines.length)lines.push(line.trimEnd());
+  return {size:size,lines:lines,lineHeight:baseSize*1.4};
+}
+function fitResultAlbumTitles(){
+  var root=document.getElementById('resultWrap');if(!root||!root.querySelectorAll||typeof getComputedStyle!=='function')return;
+  var canvas=document.createElement('canvas'),c=canvas.getContext('2d');if(!c)return;
+  root.querySelectorAll('.social-albums').forEach(function(grid){
+    var titles=Array.from(grid.querySelectorAll('.social-album strong'));
+    titles.forEach(function(el){var style=getComputedStyle(el),base=parseFloat(style.getPropertyValue('--album-title-size'))||12,width=el.getBoundingClientRect().width;if(!width)return;
+      var text=el.dataset.fullTitle||el.textContent;el.dataset.fullTitle=text;
+      var layout=albumTitleLayout(text,width,base,function(t,size){c.font=style.fontWeight+' '+size+'px '+style.fontFamily;return c.measureText(t).width;});
+      el.textContent=layout.lines.join('\n');el.style.fontSize=layout.size+'px';el.style.lineHeight=layout.lineHeight+'px';el.style.height='auto';el.dataset.titleHeight=layout.lines.length*layout.lineHeight;
+    });
+    for(var i=0;i<titles.length;i+=4){var row=titles.slice(i,i+4),height=Math.max.apply(null,row.map(function(el){return Number(el.dataset.titleHeight)||0;}));row.forEach(function(el){el.style.height=height+'px';});}
+  });
+}
+var resultBeforeTitleFit=renderResult;
+renderResult=function(){resultBeforeTitleFit.apply(this,arguments);scheduleTitleFit();};
+var titleFitTimer;
+function scheduleTitleFit(){clearTimeout(titleFitTimer);titleFitTimer=setTimeout(fitResultAlbumTitles,0);}
+if(typeof window.addEventListener==='function')window.addEventListener('resize',scheduleTitleFit);
+if(typeof ResizeObserver!=='undefined'){var titleRoot=document.getElementById('resultWrap');if(titleRoot)new ResizeObserver(scheduleTitleFit).observe(titleRoot);}
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(scheduleTitleFit);
+
+/* Same stage order and four-album rows as the compact result page. */
+socialPoster=async function(){
+  var records=socialRecords(),indices=socialStageIndices(),W=1200,M=64,gap=18,cols=4,cover=(W-2*M-gap*(cols-1))/cols,row=cover+105;
+  var cv=document.createElement('canvas'),c=cv.getContext('2d'),missing=0;
+  function measureTitle(t,size){c.font='600 '+size+'px sans-serif';return c.measureText(t).width;}
+  var layouts=records.map(function(stage){return stage.map(function(a){return albumTitleLayout(a.album,cover,23,measureTitle);});});
+  var rowHeights=records.map(function(stage,si){var rows=[];for(var i=0;i<stage.length;i+=cols){var titleHeight=Math.max.apply(null,layouts[si].slice(i,i+cols).map(function(l){return l.lines.length*l.lineHeight;}));rows.push({titleHeight:titleHeight,height:cover+14+titleHeight+45});}return rows;});
+  var stageHeights=indices.map(function(si){return 82+rowHeights[si].reduce(function(total,r){return total+r.height;},0)+26;});
+  var genreY=190+stageHeights.reduce(function(a,b){return a+b;},0),H=Math.ceil(genreY+180+Math.ceil(indices.length/2)*130+65);
+  cv.width=W;cv.height=H;
+  c.fillStyle='#f7f8f5';c.fillRect(0,0,W,H);c.fillStyle='#397f78';c.font='20px sans-serif';c.fillText('我的音乐履历',M,55);
+  c.fillStyle='#28332f';c.font='bold 40px sans-serif';socialWrap(c,socialTitle(),M,112,W-2*M,46,2);
+  var loaded=await Promise.all(records.map(function(s){return Promise.all(s.map(function(a){return socialLoadImage(a.cover);}));})),y=190;
+  indices.forEach(function(si,column){
+    c.fillStyle=SOCIAL_COLORS[si];c.fillRect(M,y,W-2*M,3);c.fillStyle='#28332f';c.font='bold 31px sans-serif';c.fillText(STAGES[si],M,y+47);
+    records[si].forEach(function(a,i){
+      var ax=M+(i%cols)*(cover+gap),ay=y+78+rowHeights[si].slice(0,Math.floor(i/cols)).reduce(function(total,r){return total+r.height;},0),img=loaded[si][i];
+      c.fillStyle='#e7eeea';c.fillRect(ax,ay,cover,cover);
+      if(img){var size=Math.min(img.width,img.height);c.drawImage(img,(img.width-size)/2,(img.height-size)/2,size,size,ax,ay,cover,cover);}
+      else{if(a.cover)missing++;c.fillStyle='#69766f';c.font='17px sans-serif';socialWrap(c,a.cover?'封面暂不可用':'暂无封面',ax+8,ay+cover/2,cover-16,21,2);}
+      var layout=layouts[si][i];c.fillStyle='#28332f';c.font='600 '+layout.size+'px sans-serif';layout.lines.forEach(function(line,li){c.fillText(line,ax,ay+cover+29+li*layout.lineHeight);});
+      c.fillStyle='#596960';c.font='20px sans-serif';socialWrap(c,a.artist,ax,ay+cover+14+rowHeights[si][Math.floor(i/cols)].titleHeight+25,cover,25,1);
+    });y+=stageHeights[column];
+  });
+  c.fillStyle='#dce4dd';c.fillRect(M,genreY,W-2*M,1);c.fillStyle='#28332f';c.font='bold 29px sans-serif';c.fillText('偏好曲风',M,genreY+55);
+  c.fillStyle='#69766f';c.font='19px sans-serif';c.fillText('仅依据有曲风资料的专辑',M,genreY+91);
+  indices.forEach(function(si,i){var x=M+(i%2)*((W-2*M+32)/2),gy=genreY+140+Math.floor(i/2)*130,width=(W-2*M-32)/2;
+    c.fillStyle=SOCIAL_COLORS[si];c.fillRect(x,gy,width,3);c.fillStyle='#28332f';c.font='bold 24px sans-serif';c.fillText(STAGES[si],x,gy+36);
+    c.fillStyle='#397f78';c.font='21px sans-serif';socialWrap(c,socialGenres(si).join(' / ')||'曲风资料待补充',x,gy+72,width,27,2);
+  });
+  c.fillStyle='#69766f';c.font='17px sans-serif';c.fillText('我的音乐履历',M,H-30);return {canvas:cv,missing:missing};
+};
+
+</script><script>
+/* Name discovery is fuzzy; the selected artist's catalog stays exact. */
+var ARTIST_SUGGEST_CACHE=new Map();
+function clearArtistSuggestions(){var panel=document.getElementById('artistSuggestions');if(panel){panel.hidden=true;panel.innerHTML='';}}
+function getArtistSuggestions(q){
+  var key=searchNorm(q),cached=ARTIST_SUGGEST_CACHE.get(key);
+  if(cached&&Date.now()-cached.at<300000)return cached.promise;
+  var request=fetchJsonRetry(PROXY_BASE+'/artists?kw='+encodeURIComponent(q),6000).then(function(j){
+    if(!j||!j.ok||!Array.isArray(j.data))throw new Error('artist suggestions unavailable');
+    var seen=new Set();return j.data.filter(function(a){if(!a||typeof a.name!=='string'||!a.name.trim()||seen.has(searchNorm(a.name)))return false;seen.add(searchNorm(a.name));return true;}).slice(0,8);
+  }).catch(function(e){ARTIST_SUGGEST_CACHE.delete(key);throw e;});
+  ARTIST_SUGGEST_CACHE.set(key,{at:Date.now(),promise:request});
+  if(ARTIST_SUGGEST_CACHE.size>60)ARTIST_SUGGEST_CACHE.delete(ARTIST_SUGGEST_CACHE.keys().next().value);
+  return request;
+}
+function queryExactArtist(name,requestId){
+  return searchAlbums(name,'artist').then(function(res){if(requestId===searchSequence)renderSearchResponse(res,name,'artist',requestId,true);}).catch(function(){if(requestId===searchSequence)searchHint.textContent='曲库暂时无法连接，可稍后重试或手动添加';});
+}
+function searchArtistQuery(q,requestId){
+  return getArtistSuggestions(q).then(function(artists){
+    if(requestId!==searchSequence)return;
+    var exact=artists.some(function(a){return searchNorm(a.name)===searchNorm(q);});
+    if(!artists.length||(exact&&artists.length===1))return queryExactArtist(q,requestId);
+    var panel=document.getElementById('artistSuggestions');panel.hidden=false;
+    panel.innerHTML='<p class="artist-suggest-heading">选择歌手，查看其专辑</p>'+artists.map(function(a){
+      return '<button type="button" class="artist-option" data-artist-name="'+esc(a.name)+'"><strong>'+esc(a.name)+'</strong><span class="artist-option-arrow" aria-hidden="true">→</span></button>';
+    }).join('');searchHint.textContent=artists.length+'位相关歌手';clearCatalogPager();
+    // A short name can also be another artist's full name (Britney / Britney Spears).
+    // Keep the choices available while showing only the exact artist's albums below.
+    if(exact)return queryExactArtist(q,requestId);
+  }).catch(function(){if(requestId===searchSequence)return queryExactArtist(q,requestId);});
+}
+document.getElementById('artistSuggestions').addEventListener('click',function(e){
+  var button=e.target.closest('[data-artist-name]');if(!button)return;
+  clearTimeout(searchTimer);var name=button.dataset.artistName,id=++searchSequence;
+  searchInput.value=name;clearArtistSuggestions();searchResults.innerHTML='';clearCatalogPager();searchHint.textContent='搜索中…';
+  queryExactArtist(name,id);
+});
+var openSearchBeforeSuggestions=openSearch;
+openSearch=function(){clearArtistSuggestions();openSearchBeforeSuggestions.apply(this,arguments);};
+
+</script></body>
+</html>
