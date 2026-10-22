@@ -652,7 +652,10 @@ var NOTE_SVG='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke
 /* 删除后收掉末尾多余的空位，最少保留 INIT_SLOTS 个 */
 function pruneStage(si){
   var list=STATE.albums[si];
-  while(list.length>INIT_SLOTS && !list[list.length-1].artist){list.pop();}
+  var selected=list.filter(function(a){return !!a.artist;});
+  list.splice(0,list.length);
+  selected.forEach(function(a){list.push(a);});
+  while(list.length<INIT_SLOTS){list.push(emptyAlbum());}
 }
 function renderEntry(){
   renderTabs();
