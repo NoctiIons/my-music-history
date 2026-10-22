@@ -786,7 +786,7 @@ function stageHasAlbum(candidate,stage,index){
 searchResults.addEventListener('click',function(e){
   var row=e.target.closest('.res-row');if(!row)return;
   var it=JSON.parse(decodeURIComponent(row.dataset.pick));
-  if(stageHasAlbum(it,TARGET.stage,TARGET.idx)){toast('这个阶段已经添加过这张专辑了');return;}
+  if(stageHasAlbum(it,TARGET.stage,TARGET.idx)){toast('该作品在此阶段已添加');return;}
   var a=STATE.albums[TARGET.stage][TARGET.idx];
   a.artist=it.artist;a.album=it.album;a.cover=it.cover;a.year=it.year;
   a.genre='';a.lang='';a.albumId=it.albumId||'';a.genreName=it.genreName||'';a.releaseDate=it.releaseDate||'';a.source=it.source||'itunes';
@@ -808,7 +808,7 @@ document.getElementById('mSave').onclick=function(){
   var ar=document.getElementById('mArtist').value.trim();
   var al=document.getElementById('mAlbum').value.trim();
   if(!ar||!al){toast('歌手和专辑名都要填');return;}
-  if(stageHasAlbum({artist:ar,album:al},TARGET.stage,TARGET.idx)){toast('这个阶段已经添加过这张专辑了');return;}
+  if(stageHasAlbum({artist:ar,album:al},TARGET.stage,TARGET.idx)){toast('该作品在此阶段已添加');return;}
   var a=STATE.albums[TARGET.stage][TARGET.idx];
   var y=Number(document.getElementById('mYear').value);
   if(document.getElementById('mYear').value&&(!Number.isInteger(y)||y<1000||y>CURRENT_YEAR)){toast('请填写有效的发行年份');return;}
