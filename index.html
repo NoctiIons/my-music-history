@@ -1376,8 +1376,28 @@ if(typeof window.addEventListener==='function')window.addEventListener('resize',
 if(typeof ResizeObserver!=='undefined'){var titleRoot=document.getElementById('resultWrap');if(titleRoot)new ResizeObserver(scheduleTitleFit).observe(titleRoot);}
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(scheduleTitleFit);
 
+/* Fit actual Canvas glyph widths, retaining full words and at least 70% title size. */
+function posterAlbumTextLayout(value,width,baseSize,measure,minRatio){
+  width=Math.max(1,width-.25); // Keep subpixel font rounding inside the actual column.
+  var value=String(value||''),minSize=baseSize*(minRatio===undefined?.70:minRatio);
+  var tokens=value.match(/[\x21-\x7e\u2019]+|\s+|[^\x21-\x7e\u2019\s]/gu)||[];
+  function greedy(size){
+    var lines=[],line='';tokens.forEach(function(t){
+      if(line&&measure(line+t,size)>width){lines.push(line.trimEnd());line=t.trimStart();}else line+=t;
+    });if(line.trim())lines.push(line.trimEnd());return lines.length?lines:[''];
+  }
+  var minLines=greedy(minSize).length,low=minSize,high=baseSize;
+  function acceptable(size){var candidate=greedy(size);return candidate.length<=minLines&&candidate.every(function(line){return measure(line,size)<=width;});}
+  if(acceptable(baseSize))low=baseSize;
+  else for(var i=0;i<18;i++){var mid=(low+high)/2;if(acceptable(mid))low=mid;else high=mid;}
+  var size=low,lines=greedy(size);
+  // Fill the current line before starting the next; never rebalance finished lines.
+  var lineHeight=size*1.32;
+  return {size:size,lines:lines,lineHeight:lineHeight,height:lines.length*lineHeight};
+}
 /* Export-only portrait composition. The interactive result page is unchanged. */
 socialPoster=async function(){
+  if(document.fonts&&document.fonts.ready)await document.fonts.ready;
   var records=socialRecords(),indices=socialStageIndices(),W=1800,H=2400,M=88,missing=0;
   var cv=document.createElement('canvas');cv.width=W;cv.height=H;
   var c=cv.getContext('2d'),fontFamily='"Microsoft YaHei", sans-serif';
@@ -1394,7 +1414,7 @@ socialPoster=async function(){
     lines.forEach(function(line,i){
       // A single unusually long token is fitted locally, without truncation.
       var measured=c.measureText(line).width;
-      if(width&&measured>width){c.save();c.translate(x,y+i*lineHeight);c.scale(width/measured,1);c.fillText(line,0,0);c.restore();}
+      if(width&&measured>width){font(size*width/measured,bold);c.fillText(line,x,y+i*lineHeight);font(size,bold);}
       else c.fillText(line,x,y+i*lineHeight);
     });
   }
@@ -1402,9 +1422,10 @@ socialPoster=async function(){
   var columns=indices.length===1?1:2,stageGap=64,stageW=(W-2*M-stageGap*(columns-1))/columns;
   // A single stage uses the full page width but keeps its covers comfortably sized.
   var cover=Math.min(300,(stageW-54)/4),albumGap=(stageW-cover*4)/3;
+  function fit(value,baseSize,bold,minRatio){return posterAlbumTextLayout(value,cover,baseSize,function(t,size){font(size,bold);return c.measureText(t).width;},minRatio);}
   var layouts=indices.map(function(si){
-    var albums=records[si].map(function(a){return {title:wrap(a.album,cover,26,true),artist:wrap(a.artist,cover,23,false)};}),rows=[];
-    for(var i=0;i<albums.length;i+=4){var group=albums.slice(i,i+4),th=Math.max.apply(null,group.map(function(a){return a.title.length*35;})),ah=Math.max.apply(null,group.map(function(a){return a.artist.length*31;}));rows.push({titleHeight:th,height:cover+16+th+10+ah+34});}
+    var albums=records[si].map(function(a){var title=fit(a.album,26,true);return {title:title,artist:fit(a.artist,Math.min(22,title.size*.85),false,1)};}),rows=[];
+    for(var i=0;i<albums.length;i+=4){var group=albums.slice(i,i+4),textHeight=Math.max.apply(null,group.map(function(a){return a.title.height+10+a.artist.height;}));rows.push({height:cover+16+textHeight+34});}
     return {si:si,albums:albums,rows:rows,height:72+rows.reduce(function(n,r){return n+r.height;},0)};
   });
   var bands=[];for(var i=0;i<layouts.length;i+=columns)bands.push(Math.max.apply(null,layouts.slice(i,i+columns).map(function(l){return l.height;})));
@@ -1431,8 +1452,8 @@ socialPoster=async function(){
       c.fillStyle='#e7eeea';c.fillRect(ax,ay,cover,cover);
       if(img){var size=Math.min(img.width,img.height);c.drawImage(img,(img.width-size)/2,(img.height-size)/2,size,size,ax,ay,cover,cover);}
       else{if(a.cover)missing++;text([a.cover?'封面暂不可用':'暂无封面'],ax+8,ay+cover/2,20,false,'#65756e',26,cover-16);}
-      text(al.title,ax,ay+cover+36,26,true,'#28332f',35,cover);
-      text(al.artist,ax,ay+cover+16+l.rows[rowIndex].titleHeight+33,23,false,'#65756e',31,cover);
+      text(al.title.lines,ax,ay+cover+12+al.title.size,al.title.size,true,'#28332f',al.title.lineHeight,cover);
+      text(al.artist.lines,ax,ay+cover+12+al.title.height+10+al.artist.size,al.artist.size,false,'#65756e',al.artist.lineHeight,cover);
     });
   });c.restore();
   c.fillStyle='#dce4dd';c.fillRect(M,genreY,W-2*M,1);
